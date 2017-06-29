@@ -58,6 +58,7 @@ int main(int argc, char **argv) {
       if ((a < max_w) && (vocab[b * max_w + a] != '\n')) a++;
     }
     vocab[b * max_w + a] = 0;
+    /* read l2-normalized word vectors */
     for (a = 0; a < size; a++) fread(&M[a + b * size], sizeof(float), 1, f);
     len = 0;
     for (a = 0; a < size; a++) len += M[a + b * size] * M[a + b * size];
@@ -107,35 +108,51 @@ int main(int argc, char **argv) {
     }
     if (b == -1) continue;
     printf("\n                                              Word       Cosine distance\n------------------------------------------------------------------------\n");
+    /* set vec to sum of vectors in input sentence */
     for (a = 0; a < size; a++) vec[a] = 0;
     for (b = 0; b < cn; b++) {
       if (bi[b] == -1) continue;
       for (a = 0; a < size; a++) vec[a] += M[a + bi[b] * size];
     }
+    /* compute len = l2 norm of vec */
     len = 0;
     for (a = 0; a < size; a++) len += vec[a] * vec[a];
     len = sqrt(len);
+    /* normalize vec */
     for (a = 0; a < size; a++) vec[a] /= len;
+    /* find closest words to input sentence that are not in sentence */
+    /* bestd will be array of N highest (squared) cosines against
+     * sentence vector */
     for (a = 0; a < N; a++) bestd[a] = -1;
+    /* bestw will be array of corresponding words words */
     for (a = 0; a < N; a++) bestw[a][0] = 0;
     for (c = 0; c < words; c++) {
       a = 0;
+      /* if candidate word is in sentence, skip */
       for (b = 0; b < cn; b++) if (bi[b] == c) a = 1;
       if (a == 1) continue;
       dist = 0;
+      /* compute (squared) cosine of candidate word's vector against
+       * input sentence vector */
       for (a = 0; a < size; a++) dist += vec[a] * M[a + c * size];
+      /* set candidate word in appropriate place in top-N lists */
       for (a = 0; a < N; a++) {
+        /* if candidate word is closer than a-th word in top-N list,
+         * replace and break */
         if (dist > bestd[a]) {
+          /* shift current words down in rank */
           for (d = N - 1; d > a; d--) {
             bestd[d] = bestd[d - 1];
             strcpy(bestw[d], bestw[d - 1]);
           }
+          /* set a-th top word to candidate word */
           bestd[a] = dist;
           strcpy(bestw[a], &vocab[c * max_w]);
           break;
         }
       }
     }
+    /* print results */
     for (a = 0; a < N; a++) printf("%50s\t\t%f\n", bestw[a], bestd[a]);
   }
   return 0;
