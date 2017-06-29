@@ -1,3 +1,8 @@
+Google word2vec code modified by Chandler May for readability, with an
+eye toward understanding the algorithm details and runtime
+optimizations.  The original content of README.txt is below.
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 Tools for computing distributed representtion of words
 ------------------------------------------------------
 
@@ -18,4 +23,3 @@ The script demo-word.sh downloads a small (100MB) text corpus from the web, and 
 is finished, the user can interactively explore the similarity of the words.
 
 More information about the scripts is provided at https://code.google.com/p/word2vec/
-

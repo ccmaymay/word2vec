@@ -1,0 +1,9 @@
+.*.swp
+.*.swo
+*~
+*.bin
+word2vec
+word2phrase
+distance
+word-analogy
+compute-accuracy
