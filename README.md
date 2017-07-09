@@ -6,7 +6,7 @@ Cross-reference this code with the original papers:
 * [Distributed Representations of Words and Phrases and their Compositionality](https://papers.nips.cc/paper/5021-distributed-representations-of-words-and-phrases-and-their-compositionality)
 * [Efficient Estimation of Word Representations in Vector Space](https://arxiv.org/abs/1301.3781)
 
-The following gensim blog posts by Radim Řehůřek are also interesting and informative:
+The following [gensim](https://radimrehurek.com/gensim/models/word2vec.html) blog posts by Radim Řehůřek are also interesting and informative:
 * [Making sense of word2vec](https://rare-technologies.com/making-sense-of-word2vec/)
 * [Deep learning with word2vec and gensim](https://rare-technologies.com/deep-learning-with-word2vec-and-gensim/)
 * [Word2vec in Python, Part Two: Optimizing](https://rare-technologies.com/word2vec-in-python-part-two-optimizing/)
