@@ -547,10 +547,10 @@ void *TrainModelThread(void *id) {
       // loop over offsets within dynamic window
       // (relative to max window size)
       for (a = b; a < window * 2 + 1 - b; a++) if (a != window) {
-        // compute position in sentence of output word
-        // (input word pos - max window size + rel offset)
+        // compute position in sentence of input word
+        // (output word pos - max window size + rel offset)
         c = sentence_position - window + a;
-        // skip if output word position OOB
+        // skip if input word position OOB
         // (note this is our main constraint on word position w.r.t. sentence
         // bounds)
         if (c < 0) continue;
@@ -590,7 +590,7 @@ void *TrainModelThread(void *id) {
             if (target == word) continue;
             label = 0;
           }
-          l2 = target * layer1_size; /* output word row offset */
+          l2 = target * layer1_size; /* output/neg-sample word row offset */
           /* compute f = < v_{w_I}', v_{w_O} >
            * (or inner product for neg sample) */
           f = dot(layer1_size, syn0 + l1, syn1neg + l2);
