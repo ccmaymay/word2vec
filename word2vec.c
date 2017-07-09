@@ -98,10 +98,14 @@ void InitUnigramTable() {
 
 // Reads a single word from a file, assuming space + tab + EOL to be word boundaries
 // returns "</s>" at every newline
-void ReadWord(char *word, FILE *fin) {
+void ReadWord(char *word, FILE *fin, char *eof) {
   int a = 0, ch;
-  while (!feof(fin)) {
-    ch = fgetc(fin);
+  while (1) {
+    ch = fgetc_unlocked(fin);
+    if (ch == EOF) {
+      *eof = 1;
+      break;
+    }
     if (ch == '\r') continue;
     if ((ch == ' ') || (ch == '\t') || (ch == '\n')) {
       if (a > 0) {
@@ -141,10 +145,13 @@ int SearchVocab(char *word) {
 }
 
 // Reads a word and returns its index in the vocabulary
-int ReadWordIndex(FILE *fin) {
-  char word[MAX_STRING];
-  ReadWord(word, fin);
-  if (feof(fin)) return -1;
+int ReadWordIndex(FILE *fin, char *eof) {
+  char word[MAX_STRING], eof_l = 0;
+  ReadWord(word, fin, &eof_l);
+  if (eof_l) {
+    *eof = 1;
+    return -1;
+  }
   return SearchVocab(word);
 }
 
@@ -169,7 +176,10 @@ int AddWordToVocab(char *word) {
 
 // Used later for sorting by word counts
 int VocabCompare(const void *a, const void *b) {
-    return ((struct vocab_word *)b)->cn - ((struct vocab_word *)a)->cn;
+  long long l = ((struct vocab_word *)b)->cn - ((struct vocab_word *)a)->cn;
+  if (l > 0) return 1;
+  if (l < 0) return -1;
+  return 0;
 }
 
 // Sorts the vocabulary by frequency using word counts
@@ -295,9 +305,9 @@ void CreateBinaryTree() {
 // prune vocab incrementally (as needed to keep number of items below
 // effective hash table capacity)
 void LearnVocabFromTrainFile() {
-  char word[MAX_STRING];
+  char word[MAX_STRING], eof = 0;
   FILE *fin;
-  long long a, i;
+  long long a, i, wc = 0;
   for (a = 0; a < vocab_hash_size; a++) vocab_hash[a] = -1;
   fin = fopen(train_file, "rb");
   if (fin == NULL) {
@@ -307,12 +317,14 @@ void LearnVocabFromTrainFile() {
   vocab_size = 0;
   AddWordToVocab((char *)"</s>");
   while (1) {
-    ReadWord(word, fin);
-    if (feof(fin)) break;
+    ReadWord(word, fin, &eof);
+    if (eof) break;
     train_words++;
-    if ((debug_mode > 1) && (train_words % 100000 == 0)) {
-      printf("%lldK%c", train_words / 1000, 13);
+    wc++;
+    if ((debug_mode > 1) && (wc >= 1000000)) {
+      printf("%lldM%c", train_words / 1000000, 13);
       fflush(stdout);
+      wc = 0;
     }
     i = SearchVocab(word);
     if (i == -1) {
@@ -339,7 +351,7 @@ void SaveVocab() {
 
 void ReadVocab() {
   long long a, i = 0;
-  char c;
+  char c, eof = 0;
   char word[MAX_STRING];
   FILE *fin = fopen(read_vocab_file, "rb");
   if (fin == NULL) {
@@ -349,8 +361,8 @@ void ReadVocab() {
   for (a = 0; a < vocab_hash_size; a++) vocab_hash[a] = -1;
   vocab_size = 0;
   while (1) {
-    ReadWord(word, fin);
-    if (feof(fin)) break;
+    ReadWord(word, fin, &eof);
+    if (eof) break;
     a = AddWordToVocab(word);
     fscanf(fin, "%lld%c", &vocab[a].cn, &c);
     i++;
@@ -399,6 +411,7 @@ void *TrainModelThread(void *id) {
   long long word_count = 0, last_word_count = 0, sen[MAX_SENTENCE_LENGTH + 1];
   long long l1, l2, c, target, label, local_iter = iter;
   unsigned long long next_random = (long long)id;
+  char eof = 0;
   real f, g;
   clock_t now;
   real *neu1 = (real *)calloc(layer1_size, sizeof(real));
@@ -430,8 +443,8 @@ void *TrainModelThread(void *id) {
       // we have finished training over the most recently-read sentence;
       // read new sentence
       while (1) {
-        word = ReadWordIndex(fi);
-        if (feof(fi)) break;
+        word = ReadWordIndex(fi, &eof);
+        if (eof) break;
         if (word == -1) continue; // skip OOV
         word_count++;
         if (word == 0) break; // break at EOS
@@ -451,7 +464,7 @@ void *TrainModelThread(void *id) {
       }
       sentence_position = 0;
     }
-    if (feof(fi) || (word_count > train_words / num_threads)) {
+    if (eof || (word_count > train_words / num_threads)) {
       // we are at end of this iteration (sweep) over the data;
       // restart
       word_count_actual += word_count - last_word_count;
