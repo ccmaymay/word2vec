@@ -5,11 +5,13 @@ optimizations.
 Cross-reference this code with the original papers:
 * [Distributed Representations of Words and Phrases and their Compositionality](https://papers.nips.cc/paper/5021-distributed-representations-of-words-and-phrases-and-their-compositionality)
 * [Efficient Estimation of Word Representations in Vector Space](https://arxiv.org/abs/1301.3781)
+
 The following gensim blog posts by Radim Řehůřek are also interesting and informative:
 * [Making sense of word2vec](https://rare-technologies.com/making-sense-of-word2vec/)
 * [Deep learning with word2vec and gensim](https://rare-technologies.com/deep-learning-with-word2vec-and-gensim/)
 * [Word2vec in Python, Part Two: Optimizing](https://rare-technologies.com/word2vec-in-python-part-two-optimizing/)
 * [Parallelizing word2vec in Python](https://rare-technologies.com/parallelizing-word2vec-in-python/)
+
 And, shameless plug, I wrote a C++ implementation of word2vec (the skip-gram with negative sampling (SGNS) algorithm) that also supports streaming (vocabulary and embedding model are learned in one pass, see [the write-up on arXiv](https://arxiv.org/abs/1704.07463) for details):
 * [athena](https://github.com/cjmay/athena) ([naive-lm-train-raw](https://github.com/cjmay/athena/blob/master/athena/naive-lm-train-raw.cpp) is the entry point for basic SGNS training)
 
