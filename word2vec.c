@@ -194,16 +194,6 @@ real
                                //   [-MAX_EXP, MAX_EXP)
 clock_t start;                 // start time of training algorithm
 
-// Return dot product of length `n` vectors `x` and `y`
-float dot(int n, const float* x, const float* y) {
-  float d = 0;
-  int c;
-  for (c = 0; c < n; ++c) {
-    d += x[c] * y[c];
-  }
-  return d;
-}
-
 // Allocate and populate negative-sampling data structure `table`, an
 // array of `table_size` words distributed approximately according to
 // the empirical unigram distribution (smoothed by raising all
@@ -870,8 +860,9 @@ void *TrainModelThread(void *id) {
           }
           l2 = target * layer1_size; // output/neg-sample word row offset
           // compute f = < v_{w_I}', v_{w_O} >
-          // (or inner product for neg sample)
-          f = dot(layer1_size, syn0 + l1, syn1neg + l2);
+          // (inner product for neg sample)
+          f = 0;
+          for (c = 0; c < layer1_size; c++) f += syn0[c + l1] * syn1neg[c + l2];
           // compute gradient coeff g = alpha * (label - 1 / (e^-f + 1))
           // (alpha is learning rate, label is 1 for output and 0 for neg)
           if (f > MAX_EXP) g = (label - 1) * alpha;
