@@ -23,7 +23,7 @@ SEPARATE_RUNTIME_TABS := \
 NUM_TRIALS ?= 10
 
 .PHONY: all
-all: runtime.tab
+all: runtime.tab cpuinfo.txt
 
 _math.o: _math.cpp _math.h
 	$(CXX) $< -o $@ -c $(CXXFLAGS)
@@ -60,4 +60,4 @@ cpuinfo.txt:
 	cat /proc/cpuinfo > $@
 
 clean:
-	rm -f $(MAINS)
+	rm -f $(MAINS) $(SEPARATE_RUNTIME_TABS) runtime.tab cpuinfo.txt vocab
