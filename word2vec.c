@@ -108,29 +108,6 @@
 #define MAX_CODE_LENGTH 40
 
 
-// We use mymalloc wrapper for memory allocation to compare performance
-// of different approaches.
-//
-// Original word2vec uses posix_memalign:
-#define mymalloc(data, alignment, size) posix_memalign((data), (alignment), (size));
-//
-// We could compare to ordinary malloc:
-//#define mymalloc(data, alignment, size) ((long) (*data = malloc(size)))
-//
-// Or, for a basis of comparison, force the arrays off word boundaries
-// to force worst-case malloc behavior(?):
-//int mymalloc(void** data, size_t alignment, size_t size) {
-//  int ret = posix_memalign(data, alignment, size+alignment);
-//  if (ret != 0) {
-//    fprintf(stderr, "error allocating vector of size %zu at alignment %zu\n",
-//            size, alignment);
-//    exit(1);
-//  }
-//  ++*(long**)data;
-//  return ret;
-//}
-
-
 // Maximum 30 * 0.7 = 21M words in the vocabulary
 // (where 0.7 is the magical load factor beyond which hash table
 // performance degrades)
@@ -606,16 +583,16 @@ void ReadVocab() {
 void InitNet() {
   long long a, b;
   unsigned long long next_random = 1;
-  a = mymalloc((void **)&syn0, 128, (long long)vocab_size * layer1_size * sizeof(real));
+  a = posix_memalign((void **)&syn0, 128, (long long)vocab_size * layer1_size * sizeof(real));
   if (syn0 == NULL) {printf("Memory allocation failed\n"); exit(1);}
   if (hs) {
-    a = mymalloc((void **)&syn1, 128, (long long)vocab_size * layer1_size * sizeof(real));
+    a = posix_memalign((void **)&syn1, 128, (long long)vocab_size * layer1_size * sizeof(real));
     if (syn1 == NULL) {printf("Memory allocation failed\n"); exit(1);}
     for (a = 0; a < vocab_size; a++) for (b = 0; b < layer1_size; b++)
      syn1[a * layer1_size + b] = 0;
   }
   if (negative>0) {
-    a = mymalloc((void **)&syn1neg, 128, (long long)vocab_size * layer1_size * sizeof(real));
+    a = posix_memalign((void **)&syn1neg, 128, (long long)vocab_size * layer1_size * sizeof(real));
     if (syn1neg == NULL) {printf("Memory allocation failed\n"); exit(1);}
     for (a = 0; a < vocab_size; a++) for (b = 0; b < layer1_size; b++)
      syn1neg[a * layer1_size + b] = 0;
