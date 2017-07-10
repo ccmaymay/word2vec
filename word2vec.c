@@ -14,7 +14,7 @@
 
 
 // ---------------------------------------------------------------------
-
+//
 // Word2vec C code annotated and slightly refactored (for correctness
 // and style) by Chandler May.  The learned model should be virtually
 // the same as that produced by the original code; the modifications
@@ -23,7 +23,7 @@
 //   git diff original
 //
 // to see the complete set of changes to the original code.
-
+//
 // Preliminaries:
 // * There are a lot of global variables.  They are important.
 // * a, b, and c are used for loop variables and lots of other things;
@@ -32,7 +32,7 @@
 // * Random number generation is through a custom linear congruential
 //   generator.  This in particular facilitates decoupled random number
 //   generation across training threads.
-
+//
 // Notation:
 // * Backticks are used to denote variables (`foo`)
 // * The skip-gram model learns co-occurrence information between a
@@ -54,7 +54,7 @@
 //   co-occurs with "brown" and "fox" and "over" and "the" and does not
 //   co-occur with a selection of negative-sample words (perhaps
 //   "apple", "of", and "slithered").
-
+//
 // Partial call graph:
 //
 //   main
@@ -81,7 +81,7 @@
 //         L- ReadWordIndex
 //            |- ReadWord
 //            L- SearchVocab
-
+//
 // ---------------------------------------------------------------------
 
 
@@ -94,7 +94,9 @@
 
 // max length of filenames, vocabulary words (including null terminator)
 #define MAX_STRING 100
+// size of pre-computed e^x / (e^x + 1) table
 #define EXP_TABLE_SIZE 1000
+// max exponent x for which to pre-compute e^x / (e^x + 1)
 #define MAX_EXP 6
 // max length (in words) of a sequence of overlapping word contexts or
 // "sentences" (if there is a sequence of words longer than this not
@@ -106,15 +108,15 @@
 #define MAX_CODE_LENGTH 40
 
 
-// We override memory allocator to compare performance of different
-// approaches.
-
+// We use mymalloc wrapper for memory allocation to compare performance
+// of different approaches.
+//
 // Original word2vec uses posix_memalign:
 #define mymalloc(data, alignment, size) posix_memalign((data), (alignment), (size));
-
+//
 // We could compare to ordinary malloc:
 //#define mymalloc(data, alignment, size) ((long) (*data = malloc(size)))
-
+//
 // Or, for a basis of comparison, force the arrays off word boundaries
 // to force worst-case malloc behavior(?):
 //int mymalloc(void** data, size_t alignment, size_t size) {
@@ -130,32 +132,89 @@
 
 
 // Maximum 30 * 0.7 = 21M words in the vocabulary
-// (where 0.7 is the load factor after which hash
-// table performance degrades)
+// (where 0.7 is the magical load factor beyond which hash table
+// performance degrades)
 const int vocab_hash_size = 30000000;
 
-typedef float real;                    // Precision of float numbers
+// Negative sampling distribution represented by 1e8-element discrete
+// sample from smoothed empirical unigram distribution.
+const int table_size = 1e8;
 
+// Set precision of real numbers
+typedef float real;
+
+// Representation of a word in the vocabulary, including (optional,
+// for hierarchical softmax only) Huffman coding
 struct vocab_word {
   long long cn;
   int *point;
   char *word, *code, codelen;
 };
 
-char train_file[MAX_STRING], output_file[MAX_STRING];
-char save_vocab_file[MAX_STRING], read_vocab_file[MAX_STRING];
-struct vocab_word *vocab;
-int binary = 0, cbow = 1, debug_mode = 2, window = 5, min_count = 5, num_threads = 12, min_reduce = 1;
-int *vocab_hash;
-long long vocab_max_size = 1000, vocab_size = 0, layer1_size = 100;
-long long train_words = 0, word_count_actual = 0, iter = 5, file_size = 0, classes = 0;
-real alpha = 0.025, starting_alpha, sample = 1e-3;
-real *syn0, *syn1, *syn1neg, *expTable;
-clock_t start;
-
-int hs = 0, negative = 5;
-const int table_size = 1e8;
-int *table;
+struct vocab_word *vocab;      // vocabulary
+char
+  train_file[MAX_STRING],      // training data (text) input file
+  output_file[MAX_STRING],     // word vector (or word vector cluster)
+                               //   (binary/text) output file
+  save_vocab_file[MAX_STRING], // vocabulary (text) output file
+  read_vocab_file[MAX_STRING]; // vocabulary (text) input file
+int
+  binary = 0,                  // 0 for text output, 1 for binary
+  cbow = 1,                    // 0 for skip-gram, 1 for CBOW
+  debug_mode = 2,              // 1 for extra terminal output, 2 for
+                               //   extra extra terminal output
+  window = 5,                  // context window radius (use `window`
+                               //   output words on left and `window`
+                               //   output words on right as context
+                               //   of central input word)
+  min_count = 5,               // min count of words in vocabulary when
+                               //   pruning to mitigate sparsity
+  num_threads = 12,            // number of threads to use for training
+  min_reduce = 1,              // initial min count of words to keep in
+                               //   vocabulary if pruning for space
+                               //   (will be incremented as necessary)
+                               //   (do not change)
+  hs = 0,                      // 1 for hierarchical softmax
+  negative = 5;                // number of negative samples to draw
+                               //   per word
+int *vocab_hash,               // hash table of words to positions in
+                               //   vocabulary
+  *table;                      // discrete sample of words used as
+                               //   negative sampling distribution
+long long
+  vocab_max_size = 1000,       // capacity of vocabulary
+                               //   (will be incremented as necessary)
+  vocab_size = 0,              // number of words in vocabulary
+                               //   (do not change)
+  layer1_size = 100;           // size of embeddings
+  train_words = 0,             // number of word tokens in training data
+                               //   (do not change)
+  word_count_actual = 0,       // number of word tokens seen so far
+                               //   during training, updated
+                               //   infrequently (used for terminal
+                               //   output and learning rate)
+                               //   (do not change)
+  iter = 5,                    // number of passes to take through
+                               //   training data
+  file_size = 0,               // size (in bytes) of training data file
+  classes = 0;                 // number of k-means clusters to learn
+                               //   of word vectors and write to output
+                               //   file (0 to write word vectors to
+                               //   output file, no clustering)
+real
+  alpha = 0.025,               // linear-decay learning rate
+  starting_alpha,              // initial learning rate
+                               //   (do not change; initialized at
+                               //   beginning of training)
+  sample = 1e-3;               // word subsampling threshold
+real
+  *syn0,                       // input word embeddings
+  *syn1,                       // (used by hierarchical softmax)
+  *syn1neg,                    // output word embeddings
+  *expTable;                   // precomputed table of
+                               //   e^x / (e^x + 1) for x in
+                               //   [-MAX_EXP, MAX_EXP)
+clock_t start;                 // start time of training algorithm
 
 // Return dot product of length `n` vectors `x` and `y`
 float dot(int n, const float* x, const float* y) {
@@ -539,10 +598,10 @@ void ReadVocab() {
 // Allocate memory for and initialize neural network parameters.  Each
 // array has size `vocab_size` x `layer1_size`.
 //
-//   syn0: main word embeddings, initialized uniformly on
+//   syn0: input word embeddings, initialized uniformly on
 //         [-0.5/`layer1_size`, 0.5/`layer1_size`)
 //   syn1: only used by hierarchical softmax; initialized to 0
-//   syn1neg: context word embeddings; initialized to zero
+//   syn1neg: output word embeddings; initialized to zero
 void InitNet() {
   long long a, b;
   unsigned long long next_random = 1;
@@ -732,8 +791,8 @@ void *TrainModelThread(void *id) {
         if (c >= sentence_length) continue;
         last_word = sen[c]; // compute input word index
         if (last_word == -1) continue; // skip OOV (checked already, should never fire)
-        l1 = last_word * layer1_size; /* input word row offset */
-        /* initialize gradient for input word (work space) */
+        l1 = last_word * layer1_size; // input word row offset
+        // initialize gradient for input word (work space)
         for (c = 0; c < layer1_size; c++) neu1e[c] = 0;
         // HIERARCHICAL SOFTMAX
         if (hs) for (d = 0; d < vocab[word].codelen; d++) {
@@ -754,33 +813,33 @@ void *TrainModelThread(void *id) {
         // NEGATIVE SAMPLING
         if (negative > 0) for (d = 0; d < negative + 1; d++) {
           if (d == 0) {
-            /* fetch output word */
+            // fetch output word
             target = word;
             label = 1;
           } else {
-            /* fetch negative-sampled word */
+            // fetch negative-sampled word
             next_random = next_random * (unsigned long long)25214903917 + 11;
             target = table[(next_random >> 16) % table_size];
             if (target == 0) target = next_random % (vocab_size - 1) + 1;
             if (target == word) continue;
             label = 0;
           }
-          l2 = target * layer1_size; /* output/neg-sample word row offset */
-          /* compute f = < v_{w_I}', v_{w_O} >
-           * (or inner product for neg sample) */
+          l2 = target * layer1_size; // output/neg-sample word row offset
+          // compute f = < v_{w_I}', v_{w_O} >
+          // (or inner product for neg sample)
           f = dot(layer1_size, syn0 + l1, syn1neg + l2);
-          /* compute gradient coeff g = alpha * (label - 1 / (e^-f + 1))
-           * (alpha is learning rate, label is 1 for output and 0 for neg) */
+          // compute gradient coeff g = alpha * (label - 1 / (e^-f + 1))
+          // (alpha is learning rate, label is 1 for output and 0 for neg)
           if (f > MAX_EXP) g = (label - 1) * alpha;
           else if (f < -MAX_EXP) g = (label - 0) * alpha;
           else g = (label - expTable[(int)((f + MAX_EXP) * (EXP_TABLE_SIZE / MAX_EXP / 2))]) * alpha;
-          /* contribute to gradient for input word */
+          // contribute to gradient for input word
           for (c = 0; c < layer1_size; c++) neu1e[c] += g * syn1neg[c + l2];
-          /* perform gradient step for output/neg-sample word */
+          // perform gradient step for output/neg-sample word
           for (c = 0; c < layer1_size; c++) syn1neg[c + l2] += g * syn0[c + l1];
         }
-        /* now that we've taken gradient step for output and all neg sample
-         * words, take gradient step for input word */
+        // now that we've taken gradient step for output and all neg sample
+        // words, take gradient step for input word
         for (c = 0; c < layer1_size; c++) syn0[c + l1] += neu1e[c];
       }
     }
@@ -947,11 +1006,14 @@ int main(int argc, char **argv) {
   if ((i = ArgPos((char *)"-classes", argc, argv)) > 0) classes = atoi(argv[i + 1]);
   vocab = (struct vocab_word *)calloc(vocab_max_size, sizeof(struct vocab_word));
   vocab_hash = (int *)calloc(vocab_hash_size, sizeof(int));
-  /* precompute e^x / (e^x + 1) for x in [-MAX_EXP, MAX_EXP) ([-6, 6)) */
+  // precompute e^x / (e^x + 1) for x in [-MAX_EXP, MAX_EXP)
+  // TODO extra element (+ 1) seems unused?
   expTable = (real *)malloc((EXP_TABLE_SIZE + 1) * sizeof(real));
   for (i = 0; i < EXP_TABLE_SIZE; i++) {
-    expTable[i] = exp((i / (real)EXP_TABLE_SIZE * 2 - 1) * MAX_EXP); // Precompute the exp() table
-    expTable[i] = expTable[i] / (expTable[i] + 1);                   // Precompute f(x) = x / (x + 1)
+    // Precompute the exp() table
+    expTable[i] = exp((i / (real)EXP_TABLE_SIZE * 2 - 1) * MAX_EXP);
+    // Precompute f(x) = x / (x + 1)
+    expTable[i] = expTable[i] / (expTable[i] + 1);
   }
   TrainModel();
   return 0;
