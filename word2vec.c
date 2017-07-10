@@ -15,10 +15,7 @@
 
 // ---------------------------------------------------------------------
 //
-// Word2vec C code annotated and slightly refactored (for correctness
-// and style) by Chandler May.  The learned model should be virtually
-// the same as that produced by the original code; the modifications
-// that are non-cosmetic all apply to edge cases.  Run
+// Word2vec C code commented by Chandler May.  Run
 //
 //   git diff original
 //

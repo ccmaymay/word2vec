@@ -1,5 +1,11 @@
 [Google word2vec C code](https://github.com/tmikolov/word2vec) with
-comments and (mostly) cosmetic modifications.
+comments.  Run
+
+```bash
+    git diff original
+```
+
+to see the complete set of changes to the original code.
 
 Cross-reference this code with the original papers:
 * [Distributed Representations of Words and Phrases and their Compositionality](https://papers.nips.cc/paper/5021-distributed-representations-of-words-and-phrases-and-their-compositionality)
