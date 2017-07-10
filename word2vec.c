@@ -26,7 +26,7 @@
 //
 // Preliminaries:
 // * There are a lot of global variables.  They are important.
-// * a, b, and c are used for loop variables and lots of other things;
+// * a, b, and c are used for loop counters and lots of other things;
 //   it's not uncommon for one of them to be set to one thing and then
 //   re-initialized and used for something completely different.
 // * Random number generation is through a custom linear congruential
@@ -190,9 +190,10 @@ long long
   train_words = 0,             // number of word tokens in training data
                                //   (do not change)
   word_count_actual = 0,       // number of word tokens seen so far
-                               //   during training, updated
-                               //   infrequently (used for terminal
-                               //   output and learning rate)
+                               //   during training, over all
+                               //   iterations; updated infrequently
+                               //   (used for terminal output and
+                               //   learning rate)
                                //   (do not change)
   iter = 5,                    // number of passes to take through
                                //   training data
@@ -639,21 +640,57 @@ void InitNet() {
 // skip-gram; ensure you are looking in the right code block (for your
 // purposes)!  The added comments focus on the SGNS case.
 void *TrainModelThread(void *id) {
-  long long a, b, d, cw, word, last_word, sentence_length = 0, sentence_position = 0;
-  long long word_count = 0, last_word_count = 0, sen[MAX_SENTENCE_LENGTH + 1];
-  long long l1, l2, c, target, label, local_iter = iter;
-  unsigned long long next_random = (long long)id;
-  char eof = 0;
-  real f, g;
-  clock_t now;
+  long long
+    a,                     // loop counter among other things
+    b,                     // offset of dynamic window in max window
+                           //   (if 0, use all `window` output
+                           //   words on each side of input word;
+                           //   otherwise use `window - b` words
+                           //   on each side)
+    d,                     // loop counter among other things
+    cw,                    // (used by CBOW)
+    word,                  // index of output word in vocabulary
+    last_word,             // index of input word in vocabulary
+    sentence_length = 0,   // number of words read into the current
+                           //   sentence
+    sentence_position = 0, // position of current output word in
+                           //   sentence
+    word_count = 0,        // number of words seen so far in this
+                           //   iteration
+    last_word_count = 0,   // number of words seen so far in this
+                           //   iteration, as of the most recent
+                           //   update of terminal output and learning
+                           //   rate
+    l1,                    // input word row offset in syn0
+    l2,                    // output word row offset in syn1, syn1neg
+    c,                     // loop counter among other things
+    target,                // index of output word or negatively-sampled
+                           //   word in vocabulary
+    label,                 // switch between output word (1) and
+                           //   negatively-sampled word (0)
+    local_iter = iter;     // iterations over this thread's chunk of the
+                           //   data set left
+  long long
+    sen[MAX_SENTENCE_LENGTH + 1]; // index of word in vocabulary for
+                                  //   each word in current sentence
+  unsigned long long
+    next_random = (long long)id;  // thread-specific RNG state
+  char eof = 0;            // 1 if end of file has been reached
+  real f, g;               // work space (values of sub-expressions in
+                           //   gradient computation)
+  clock_t now;             // current time during training
   // allocate memory for gradients
-  real *neu1 = (real *)calloc(layer1_size, sizeof(real));
-  real *neu1e = (real *)calloc(layer1_size, sizeof(real));
+  real
+    *neu1 = (real *)calloc(layer1_size, sizeof(real)),
+    *neu1e = (real *)calloc(layer1_size, sizeof(real));
   FILE *fi = fopen(train_file, "rb");
-  fseek(fi, file_size / (long long)num_threads * (long long)id, SEEK_SET);
-  while (1) {
-    // pass over our thread's chunk of the dataset `iter` times
 
+  fseek(fi, file_size / (long long)num_threads * (long long)id, SEEK_SET);
+
+  // iteratively read a sentence and train (update gradients) over it;
+  // read over all sentences in this thread's chunk of the training
+  // data `iter` times, then break
+  while (1) {
     // every 10k words, update progress in terminal and update learning
     // rate
     if (word_count - last_word_count > 10000) {
@@ -666,58 +703,77 @@ void *TrainModelThread(void *id) {
          word_count_actual / ((real)(now - start + 1) / (real)CLOCKS_PER_SEC * 1000));
         fflush(stdout);
       }
-      // linear-decay learning rate (decreases from one to zero
-      // linearly in number of words seen, where each word in the data
-      // is to be seen iter times (iter sweeps over dataset)
+      // linear-decay learning rate (decreases from one toward zero
+      // linearly in number of words seen, but thresholded below
+      // at one ten-thousandth of initial learning rate)
+      // (each word in the data is to be seen `iter` times)
       alpha = starting_alpha * (1 - word_count_actual / (real)(iter * train_words + 1));
       if (alpha < starting_alpha * 0.0001) alpha = starting_alpha * 0.0001;
     }
 
-    // if we have finished processing the most recently-read sentence
-    // (or we are just starting), read a new sentence
+    // if we have finished training on the most recently-read sentence
+    // (or we are just starting training), read a new sentence;
+    // truncate each sentence at `MAX_SENTENCE_LENGTH` words (sentences
+    // longer than that will be broken up into smaller sentences)
     if (sentence_length == 0) {
+      // iteratively read word and add to sentence
       while (1) {
         word = ReadWordIndex(fi, &eof);
         if (eof) break;
-        if (word == -1) continue; // skip OOV
+        // skip OOV
+        if (word == -1) continue;
         word_count++;
-        if (word == 0) break; // break at EOS
+        // if EOS, we're done reading this sentence
+        if (word == 0) break;
         // The subsampling randomly discards frequent words while keeping the ranking same
         if (sample > 0) {
           // discard w.p. 1 - [ sqrt(t / p_{word}) + t / p_{word} ]
-          // (t is the subsampling threshold, p_{word} is the ML estimate
-          // of probability of word in unigram LM (normalized freq)
+          // (t is the subsampling threshold `sample`, p_{word} is the
+          // ML estimate of the probability of `word` in a unigram LM
+          // (normalized frequency)
           real ran = (sqrt(vocab[word].cn / (sample * train_words)) + 1) * (sample * train_words) / vocab[word].cn;
           next_random = next_random * (unsigned long long)25214903917 + 11;
           if (ran < (next_random & 0xFFFF) / (real)65536) continue;
         }
+
         sen[sentence_length] = word;
         sentence_length++;
         // truncate long sentences
         if (sentence_length >= MAX_SENTENCE_LENGTH) break;
       }
+
+      // set output word position to first word in sentence
       sentence_position = 0;
     }
+
+    // if we are at the end of this iteration (sweep over the data),
+    // restart and decrement `local_iter`
     if (eof || (word_count > train_words / num_threads)) {
-      // we are at end of this iteration (sweep) over the data;
-      // restart
       word_count_actual += word_count - last_word_count;
       local_iter--;
       if (local_iter == 0) break;
       word_count = 0;
       last_word_count = 0;
+      // signal to read new sentence
       sentence_length = 0;
       fseek(fi, file_size / (long long)num_threads * (long long)id, SEEK_SET);
       continue;
     }
+
     // get index of output word
     word = sen[sentence_position];
-    if (word == -1) continue; // skip OOV (checked already, should never fire)
+    // skip OOV (TODO, checked OOV already when reading sentence?)
+    if (word == -1) continue;
+    // reset gradients to zero
     for (c = 0; c < layer1_size; c++) neu1[c] = 0;
     for (c = 0; c < layer1_size; c++) neu1e[c] = 0;
+    // pick dynamic window offset (uniformly at random, between 0
+    // (inclusive) and max window size `window` (exclusive))
     next_random = next_random * (unsigned long long)25214903917 + 11;
-    b = next_random % window;  // pick dynamic (unif rand) window start
-    if (cbow) {  //train the cbow architecture
+    b = next_random % window;
+
+    // CBOW
+    if (cbow) {
       // in -> hidden
       cw = 0;
       for (a = b; a < window * 2 + 1 - b; a++) if (a != window) {
@@ -731,6 +787,8 @@ void *TrainModelThread(void *id) {
       }
       if (cw) {
         for (c = 0; c < layer1_size; c++) neu1[c] /= cw;
+
+        // CBOW HIERARCHICAL SOFTMAX
         if (hs) for (d = 0; d < vocab[word].codelen; d++) {
           f = 0;
           l2 = vocab[word].point[d] * layer1_size;
@@ -746,7 +804,8 @@ void *TrainModelThread(void *id) {
           // Learn weights hidden -> output
           for (c = 0; c < layer1_size; c++) syn1[c + l2] += g * neu1[c];
         }
-        // NEGATIVE SAMPLING
+
+        // CBOW NEGATIVE SAMPLING
         if (negative > 0) for (d = 0; d < negative + 1; d++) {
           if (d == 0) {
             target = word;
@@ -767,6 +826,7 @@ void *TrainModelThread(void *id) {
           for (c = 0; c < layer1_size; c++) neu1e[c] += g * syn1neg[c + l2];
           for (c = 0; c < layer1_size; c++) syn1neg[c + l2] += g * neu1[c];
         }
+
         // hidden -> in
         for (a = b; a < window * 2 + 1 - b; a++) if (a != window) {
           c = sentence_position - window + a;
@@ -777,7 +837,9 @@ void *TrainModelThread(void *id) {
           for (c = 0; c < layer1_size; c++) syn0[c + last_word * layer1_size] += neu1e[c];
         }
       }
-    } else {  //train skip-gram
+
+    // SKIP-GRAM
+    } else {
       // loop over offsets within dynamic window
       // (relative to max window size)
       for (a = b; a < window * 2 + 1 - b; a++) if (a != window) {
@@ -789,12 +851,16 @@ void *TrainModelThread(void *id) {
         // bounds)
         if (c < 0) continue;
         if (c >= sentence_length) continue;
-        last_word = sen[c]; // compute input word index
-        if (last_word == -1) continue; // skip OOV (checked already, should never fire)
-        l1 = last_word * layer1_size; // input word row offset
+        // compute input word index
+        last_word = sen[c];
+        // skip OOV (TODO checked already, should never fire)
+        if (last_word == -1) continue;
+        // compute input word row offset
+        l1 = last_word * layer1_size;
         // initialize gradient for input word (work space)
         for (c = 0; c < layer1_size; c++) neu1e[c] = 0;
-        // HIERARCHICAL SOFTMAX
+
+        // SKIP-GRAM HIERARCHICAL SOFTMAX
         if (hs) for (d = 0; d < vocab[word].codelen; d++) {
           f = 0;
           l2 = vocab[word].point[d] * layer1_size;
@@ -810,7 +876,8 @@ void *TrainModelThread(void *id) {
           // Learn weights hidden -> output
           for (c = 0; c < layer1_size; c++) syn1[c + l2] += g * syn0[c + l1];
         }
-        // NEGATIVE SAMPLING
+
+        // SKIP-GRAM NEGATIVE SAMPLING
         if (negative > 0) for (d = 0; d < negative + 1; d++) {
           if (d == 0) {
             // fetch output word
@@ -838,34 +905,61 @@ void *TrainModelThread(void *id) {
           // perform gradient step for output/neg-sample word
           for (c = 0; c < layer1_size; c++) syn1neg[c + l2] += g * syn0[c + l1];
         }
+
         // now that we've taken gradient step for output and all neg sample
         // words, take gradient step for input word
         for (c = 0; c < layer1_size; c++) syn0[c + l1] += neu1e[c];
       }
     }
+
+    // update to next output word; if we are at end of sentence, signal
+    // to read new sentence
     sentence_position++;
     if (sentence_position >= sentence_length) {
       sentence_length = 0;
       continue;
     }
   }
+
+  // clean up
   fclose(fi);
   free(neu1);
   free(neu1e);
   pthread_exit(NULL);
 }
 
+// Train word embeddings on text in `train_file` using one or more
+// threads, either learning vocabulary from that training data (in a
+// separate pass over the data) or loading the vocabulary from a file
+// `read_vocab_file`.  Optionally save vocabulary to a file
+// `save_vocab_file`; either save word embeddings to a file
+// `output_file` or, if `classes` is greater than zero, run k-means
+// clustering and save those clusters to `output_file`.
+//
+// If `output_file` is empty (first byte is null), do not train; this
+// can be used to learn the vocabulary only from a training text file.
 void TrainModel() {
-  long a, b, c, d;
-  FILE *fo;
+  long a, b, c, d; // loop counters among other things
+  FILE *fo;        // output file
   pthread_t *pt = (pthread_t *)malloc(num_threads * sizeof(pthread_t));
+
   printf("Starting training using file %s\n", train_file);
+
+  // initialize learning rate
   starting_alpha = alpha;
+
+  // read vocab from file or learn from training data
   if (read_vocab_file[0] != 0) ReadVocab(); else LearnVocabFromTrainFile();
+  // save vocab to file
   if (save_vocab_file[0] != 0) SaveVocab();
+  // if no `output_file` is specified, exit (do not train)
   if (output_file[0] == 0) return;
+
+  // initialize network parameters
   InitNet();
+  // initialize negative sampling distribution
   if (negative > 0) InitUnigramTable();
+
   start = clock();
   for (a = 0; a < num_threads; a++) pthread_create(&pt[a], NULL, TrainModelThread, (void *)a);
   for (a = 0; a < num_threads; a++) pthread_join(pt[a], NULL);
