@@ -7,6 +7,8 @@ CFLAGS_NO_MARCH := -lm -pthread -O3 -Wall -funroll-loops -Wno-unused-result
 CFLAGS_NO_O3 := -lm -pthread -O2 -march=native -Wall -funroll-loops -Wno-unused-result
 CXXFLAGS := -std=gnu++11 $(CFLAGS)
 
+BLAS_LIBS ?= -lopenblas
+
 PYTHON := python
 
 CUSTOM_WORD2VEC_MAINS := \
@@ -48,7 +50,7 @@ word2vec-no-o3: word2vec.c
 	$(CC) $< -o $@ $(CFLAGS_NO_O3)
 
 word2vec-cblas: word2vec-cblas.c
-	$(CC) $< -o $@ -lcblas $(CFLAGS)
+	$(CC) $< -o $@ $(BLAS_LIBS) $(CFLAGS)
 
 word2phrase distance word-analogy compute-accuracy $(WORD2VEC_MAINS): %: %.c
 	$(CC) $< -o $@ $(CFLAGS)
