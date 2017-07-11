@@ -30,7 +30,7 @@ SEPARATE_RUNTIME_TABS := \
 NUM_TRIALS ?= 10
 
 .PHONY: all
-all: runtime.tab cpuinfo.txt
+all: runtime.tab host.txt
 
 _math.o: _math.cpp _math.h
 	$(CXX) $< -o $@ -c $(CXXFLAGS)
@@ -78,8 +78,14 @@ runtime-athena-spacesaving-word2vec.tab: athena/build/lib/spacesaving-word2vec-t
 runtime-gensim-word2vec.tab: gensim-word2vec.py text8 vocab.gensim
 	./time.bash $(NUM_TRIALS) $@ $(PYTHON) $< train-model text8 vocab.gensim /dev/null
 
-cpuinfo.txt:
-	cat /proc/cpuinfo > $@
+host.txt:
+	rm -f $@
+	echo >> $@; cat /proc/cpuinfo >> $@
+	echo >> $@; free -h >> $@
+	echo >> $@; $(CC) --version >> $@ 2>&1
+	echo >> $@; $(CXX) --version >> $@ 2>&1
+	echo >> $@; $(PYTHON) --version >> $@ 2>&1
+	echo >> $@; $(PYTHON) -c 'import gensim; print("gensim " + gensim.__version__)' >> $@
 
 athena/Makefile:
 	git clone https://github.com/cjmay/athena
