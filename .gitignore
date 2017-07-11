@@ -24,6 +24,7 @@
 /word2vec-no-march
 /word2vec-no-memalign
 /word2vec-double
+/word2vec-continuous-lr
 /word2phrase
 /distance
 /word-analogy
