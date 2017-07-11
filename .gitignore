@@ -8,6 +8,7 @@
 .*.swo
 *.tab
 *.o
+*.bak
 /word2vec
 /word2vec-athena
 /word2vec-athena-neg
