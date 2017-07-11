@@ -17,8 +17,11 @@ WORD2VEC_MAINS := \
 	word2vec-no-subsample word2vec-double word2vec-no-memalign \
 	word2vec-no-pthread word2vec-1-neg
 
-SEPARATE_RUNTIME_TABS := \
+SEPARATE_WORD2VEC_RUNTIME_TABS := \
 	$(patsubst %,runtime-%.tab,$(WORD2VEC_MAINS) $(CUSTOM_WORD2VEC_MAINS))
+
+SEPARATE_RUNTIME_TABS := \
+	$(SEPARATE_WORD2VEC_RUNTIME_TABS) runtime-athena-word2vec.tab
 
 NUM_TRIALS ?= 10
 
@@ -53,11 +56,20 @@ runtime.tab: $(SEPARATE_RUNTIME_TABS)
 	sed -s '1!d' $< > $@
 	sed -s '1d' $^ >> $@
 
-$(SEPARATE_RUNTIME_TABS): runtime-%.tab: % text8 vocab
+$(SEPARATE_WORD2VEC_RUNTIME_TABS): runtime-%.tab: % text8 vocab
 	./time.bash $(NUM_TRIALS) $@ ./$< -train text8 -read-vocab vocab -output /dev/null -cbow 0 -hs 0 -binary 1 -iter 1 -threads 1
+
+runtime-athena-word2vec.tab: athena/build/lib/word2vec-train-raw text8 vocab
+	./time.bash $(NUM_TRIALS) $@ ./$< text8 /dev/null
 
 cpuinfo.txt:
 	cat /proc/cpuinfo > $@
+
+athena/Makefile:
+	git clone https://github.com/cjmay/athena
+
+athena/build/lib/word2vec-train-raw: athena/Makefile
+	cd athena && make build/lib/word2vec-train-raw
 
 clean:
 	rm -f $(MAINS) $(SEPARATE_RUNTIME_TABS) runtime.tab cpuinfo.txt vocab
