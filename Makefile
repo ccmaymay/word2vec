@@ -12,7 +12,7 @@ PYTHON := python
 CUSTOM_WORD2VEC_MAINS := \
 	word2vec-no-funroll word2vec-no-march word2vec-no-o3 \
 	word2vec-athena-neg word2vec-reservoir-neg word2vec-alias-neg \
-	word2vec-athena
+	word2vec-athena word2vec-cblas
 WORD2VEC_MAINS := \
 	word2vec word2vec-static-window \
 	word2vec-unsmoothed-neg word2vec-uniform-neg word2vec-local-vars \
@@ -46,6 +46,9 @@ word2vec-no-march: word2vec.c
 
 word2vec-no-o3: word2vec.c
 	$(CC) $< -o $@ $(CFLAGS_NO_O3)
+
+word2vec-cblas: word2vec-cblas.c
+	$(CC) $< -o $@ -lcblas $(CFLAGS)
 
 word2phrase distance word-analogy compute-accuracy $(WORD2VEC_MAINS): %: %.c
 	$(CC) $< -o $@ $(CFLAGS)

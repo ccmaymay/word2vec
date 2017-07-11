@@ -28,6 +28,7 @@
 /word2vec-double
 /word2vec-continuous-lr
 /word2vec-exp
+/word2vec-cblas
 /word2phrase
 /distance
 /word-analogy
