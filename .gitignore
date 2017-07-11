@@ -1,5 +1,6 @@
 /text8
 /vocab
+/vocab.athena
 *.bin
 *~
 .*.swp
