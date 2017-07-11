@@ -7,6 +7,8 @@ CFLAGS_NO_MARCH := -lm -pthread -O3 -Wall -funroll-loops -Wno-unused-result
 CFLAGS_NO_O3 := -lm -pthread -O2 -march=native -Wall -funroll-loops -Wno-unused-result
 CXXFLAGS := -std=gnu++11 $(CFLAGS)
 
+PYTHON := python
+
 CUSTOM_WORD2VEC_MAINS := \
 	word2vec-no-funroll word2vec-no-march word2vec-no-o3 \
 	word2vec-athena-neg word2vec-reservoir-neg word2vec-alias-neg \
@@ -21,7 +23,9 @@ SEPARATE_WORD2VEC_RUNTIME_TABS := \
 	$(patsubst %,runtime-%.tab,$(WORD2VEC_MAINS) $(CUSTOM_WORD2VEC_MAINS))
 
 SEPARATE_RUNTIME_TABS := \
-	$(SEPARATE_WORD2VEC_RUNTIME_TABS) runtime-athena-word2vec.tab runtime-athena-spacesaving-word2vec.tab
+	$(SEPARATE_WORD2VEC_RUNTIME_TABS) \
+	runtime-athena-word2vec.tab runtime-athena-spacesaving-word2vec.tab \
+	runtime-gensim-word2vec.tab
 
 NUM_TRIALS ?= 10
 
@@ -55,6 +59,9 @@ vocab: word2vec text8
 vocab.athena: athena/build/lib/word2vec-vocab-to-naive-lm vocab
 	./$^ -s 1e-3 $@
 
+vocab.gensim: gensim-word2vec.py text8
+	$(PYTHON) $< build-vocab text8 $@
+
 runtime.tab: $(SEPARATE_RUNTIME_TABS)
 	sed -s '1!d' $< > $@
 	sed -s '1d' $^ >> $@
@@ -67,6 +74,9 @@ runtime-athena-word2vec.tab: athena/build/lib/word2vec-train-raw text8 vocab.ath
 
 runtime-athena-spacesaving-word2vec.tab: athena/build/lib/spacesaving-word2vec-train-raw text8
 	./time.bash $(NUM_TRIALS) $@ ./$< -v 1000000 -e 100 -n 5 -c 5 -t 1e6 -k 0.025 text8 /dev/null
+
+runtime-gensim-word2vec.tab: gensim-word2vec.py text8 vocab.gensim
+	./time.bash $(NUM_TRIALS) $@ $(PYTHON) $< train-model text8 vocab.gensim /dev/null
 
 cpuinfo.txt:
 	cat /proc/cpuinfo > $@
