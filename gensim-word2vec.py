@@ -1,8 +1,13 @@
 #!/usr/bin/env python
 
+
+from __future__ import unicode_literals
+import logging
+
 from gensim.models.word2vec import Word2Vec, LineSentence
 
-if __name__ == '__main__':
+
+def main():
     from argparse import ArgumentParser
     parser = ArgumentParser()
     parser.add_argument('operation', choices=('build-vocab', 'train-model'))
@@ -10,6 +15,11 @@ if __name__ == '__main__':
     parser.add_argument('vocab_path')
     parser.add_argument('model_path', nargs='?')
     args = parser.parse_args()
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s %(levelname)-8s %(message)s',
+    )
 
     if args.operation == 'build-vocab':
         sentences = LineSentence(args.data_path, max_sentence_length=1000)
@@ -35,3 +45,7 @@ if __name__ == '__main__':
 
     else:
         raise ValueError('unknown operation {}'.format(args.operation))
+
+
+if __name__ == '__main__':
+    main()
