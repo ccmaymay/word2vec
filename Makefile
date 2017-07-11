@@ -52,7 +52,7 @@ word2vec-no-o3: word2vec.c
 word2vec-blas: word2vec-blas.c
 	$(CC) $< -o $@ $(BLAS_LIBS) $(CFLAGS)
 
-word2phrase word2vec-print-effective-tokens distance word-analogy compute-accuracy $(WORD2VEC_MAINS): %: %.c
+word2phrase word2vec-effective-tokens distance word-analogy compute-accuracy $(WORD2VEC_MAINS): %: %.c
 	$(CC) $< -o $@ $(CFLAGS)
 
 text8:

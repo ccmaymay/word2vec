@@ -29,7 +29,7 @@
 /word2vec-continuous-lr
 /word2vec-exp
 /word2vec-blas
-/word2vec-print-effective-tokens
+/word2vec-effective-tokens
 /word2phrase
 /distance
 /word-analogy
