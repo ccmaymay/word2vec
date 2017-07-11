@@ -28,7 +28,8 @@
 /word2vec-double
 /word2vec-continuous-lr
 /word2vec-exp
-/word2vec-cblas
+/word2vec-blas
+/word2vec-print-effective-tokens
 /word2phrase
 /distance
 /word-analogy
