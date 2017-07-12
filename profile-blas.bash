@@ -1,7 +1,7 @@
 #!/bin/bash
 #$ -S /bin/bash
 #$ -j y
-#$ -l h_rt=2:00:00,num_proc=1,mem_free=4G
+#$ -l h_rt=4:00:00,num_proc=1,mem_free=4G
 
 set -e
 
