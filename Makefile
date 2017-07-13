@@ -62,8 +62,8 @@ word2vec-blas: word2vec-blas.c
 word2phrase word2vec-effective-tokens distance word-analogy compute-accuracy $(WORD2VEC_MAINS): %: %.c
 	$(CC) $< -o $@ $(CFLAGS)
 
-word2vec-%.patch: word2vec-%.c
-	diff -U 3 word2vec.c $< > $@
+word2vec-%.patch: word2vec.c word2vec-%.c
+	diff -U 3 $^ > $@ || true
 
 text8:
 	curl http://mattmahoney.net/dc/text8.zip | gunzip > text8
