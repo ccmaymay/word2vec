@@ -6,6 +6,7 @@ CFLAGS_NO_FUNROLL := -lm -pthread -O3 -march=native -Wall -Wno-unused-result
 CFLAGS_NO_MARCH := -lm -pthread -O3 -Wall -funroll-loops -Wno-unused-result
 CFLAGS_NO_O3 := -lm -pthread -O2 -march=native -Wall -funroll-loops -Wno-unused-result
 CXXFLAGS := -std=gnu++11 $(CFLAGS)
+CXXFLAGS_NO_FUNROLL := -std=gnu++11 $(CFLAGS_NO_FUNROLL)
 
 CBLAS_FLAGS ?= -lopenblas
 
@@ -14,7 +15,9 @@ PYTHON := python
 CUSTOM_WORD2VEC_MAINS := \
 	word2vec-no-funroll word2vec-no-march word2vec-no-o3 \
 	word2vec-athena-neg word2vec-reservoir-neg word2vec-alias-neg \
-	word2vec-athena word2vec-blas word2vec-naive-neg
+	word2vec-athena word2vec-blas word2vec-naive-neg \
+	word2vec-local-vars-no-pthread-blas-alias-neg-no-funroll
+
 WORD2VEC_MAINS := \
 	word2vec word2vec-static-window \
 	word2vec-unsmoothed-neg word2vec-uniform-neg word2vec-local-vars \
@@ -40,6 +43,9 @@ _math.o: _math.cpp _math.h
 word2vec-athena word2vec-athena-neg word2vec-reservoir-neg word2vec-alias-neg word2vec-naive-neg: %: %.c _math.o
 	$(CXX) $^ -o $@ $(CXXFLAGS)
 
+word2vec-local-vars-no-pthread-blas-alias-neg-no-funroll: word2vec-local-vars-no-pthread-blas-alias-neg.c _math.o
+	$(CXX) $^ -o $@ $(CBLAS_FLAGS) $(CXXFLAGS_NO_FUNROLL)
+
 word2vec-no-funroll: word2vec.c
 	$(CC) $< -o $@ $(CFLAGS_NO_FUNROLL)
 
@@ -54,6 +60,9 @@ word2vec-blas: word2vec-blas.c
 
 word2phrase word2vec-effective-tokens distance word-analogy compute-accuracy $(WORD2VEC_MAINS): %: %.c
 	$(CC) $< -o $@ $(CFLAGS)
+
+word2vec-%.patch: word2vec-%.c
+	diff -U 3 word2vec.c $< > $@
 
 text8:
 	curl http://mattmahoney.net/dc/text8.zip | gunzip > text8
