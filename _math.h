@@ -79,6 +79,30 @@ class CountNormalizer {
 
 
 template <typename T>
+class NaiveSampler;
+
+template <typename T>
+class NaiveSampler {
+  T _size;
+  std::vector<float> _probability_table;
+
+  public:
+    NaiveSampler(const std::vector<float>& probabilities);
+    virtual T sample() const;
+    virtual ~NaiveSampler() { }
+
+    NaiveSampler(T size,
+                 std::vector<float>&& probability_table):
+      _size(size),
+      _probability_table(
+        std::forward<std::vector<float> >(probability_table)) { }
+
+  private:
+    NaiveSampler(const NaiveSampler& alias_sampler);
+};
+
+
+template <typename T>
 class AliasSampler;
 
 template <typename T>
@@ -166,6 +190,40 @@ class Discretization {
   private:
     Discretization(const Discretization& discretization);
 };
+
+
+//
+// NaiveSampler
+//
+
+
+template <typename T>
+NaiveSampler<T>::NaiveSampler(const std::vector<float>& probabilities):
+    _size(probabilities.size()),
+    _probability_table(probabilities.size(), 0.) {
+  if (_size > 0) {
+    _probability_table[0] = probabilities[0];
+  }
+  for (T i = 1; i < _size; ++i) {
+    _probability_table[i] = _probability_table[i - 1] + probabilities[i];
+  }
+}
+
+template <typename T>
+T NaiveSampler<T>::sample() const {
+  std::uniform_real_distribution<float> d(0, 1);
+  const float target_p = d(get_urng());
+  T low = 0, high = _size - 1;
+  while (high > low) {
+    const T mid = (low + high) / 2;
+    if (target_p > _probability_table[mid]) {
+      low = mid + 1;
+    } else {
+      high = mid;
+    }
+  }
+  return high;
+}
 
 
 //

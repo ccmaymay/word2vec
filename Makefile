@@ -14,7 +14,7 @@ PYTHON := python
 CUSTOM_WORD2VEC_MAINS := \
 	word2vec-no-funroll word2vec-no-march word2vec-no-o3 \
 	word2vec-athena-neg word2vec-reservoir-neg word2vec-alias-neg \
-	word2vec-athena word2vec-blas
+	word2vec-athena word2vec-blas word2vec-naive-neg
 WORD2VEC_MAINS := \
 	word2vec word2vec-static-window \
 	word2vec-unsmoothed-neg word2vec-uniform-neg word2vec-local-vars \
@@ -37,7 +37,7 @@ all: runtime.tab host.txt
 _math.o: _math.cpp _math.h
 	$(CXX) $< -o $@ -c $(CXXFLAGS)
 
-word2vec-athena word2vec-athena-neg word2vec-reservoir-neg word2vec-alias-neg: %: %.c _math.o
+word2vec-athena word2vec-athena-neg word2vec-reservoir-neg word2vec-alias-neg word2vec-naive-neg: %: %.c _math.o
 	$(CXX) $^ -o $@ $(CXXFLAGS)
 
 word2vec-no-funroll: word2vec.c

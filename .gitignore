@@ -15,6 +15,7 @@
 /word2vec-1-neg
 /word2vec-static-window
 /word2vec-alias-neg
+/word2vec-naive-neg
 /word2vec-reservoir-neg
 /word2vec-unsmoothed-neg
 /word2vec-uniform-neg
