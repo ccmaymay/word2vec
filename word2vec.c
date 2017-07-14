@@ -160,7 +160,7 @@ long long
                                //   (will be incremented as necessary)
   vocab_size = 0,              // number of words in vocabulary
                                //   (do not change)
-  layer1_size = 100;           // size of embeddings
+  layer1_size = 100,           // size of embeddings
   train_words = 0,             // number of word tokens in training data
                                //   (do not change)
   word_count_actual = 0,       // number of word tokens seen so far
