@@ -115,4 +115,6 @@ athena/build/lib/word2vec-vocab-to-naive-lm: athena/Makefile
 	cd athena && make build/lib/word2vec-vocab-to-naive-lm
 
 clean:
-	rm -f $(MAINS) $(SEPARATE_RUNTIME_TABS) runtime.tab cpuinfo.txt vocab
+	rm -f $(WORD2VEC_MAINS)
+	rm -f $(CUSTOM_WORD2VEC_MAINS)
+	rm -f $(SEPARATE_RUNTIME_TABS) runtime.tab cpuinfo.txt vocab
