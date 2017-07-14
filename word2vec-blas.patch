@@ -1,0 +1,42 @@
+--- word2vec.c	2017-07-14 12:04:27.108158044 -0400
++++ word2vec-blas.c	2017-07-11 15:57:59.319114739 -0400
+@@ -24,6 +24,18 @@
+ #define MAX_SENTENCE_LENGTH 1000
+ #define MAX_CODE_LENGTH 40
+ 
++#ifdef __APPLE__
++#include <Accelerate/Accelerate.h>
++#else
++void cblas_saxpy(const int N, const float alpha, const float* X,
++                 const int incX, float* Y, const int incY);
++float cblas_sdot(const int N, const float* X, const int incX,
++                 const float* Y, const int incY);
++float cblas_snrm2(const int N, const float* X, const int incX);
++void cblas_sscal(const int N, const float alpha, float* X,
++                 const int incX);
++#endif
++
+ const int vocab_hash_size = 30000000;  // Maximum 30 * 0.7 = 21M words in the vocabulary
+ 
+ typedef float real;                    // Precision of float numbers
+@@ -530,16 +542,15 @@
+             label = 0;
+           }
+           l2 = target * layer1_size;
+-          f = 0;
+-          for (c = 0; c < layer1_size; c++) f += syn0[c + l1] * syn1neg[c + l2];
++          f = cblas_sdot(layer1_size, syn0 + l1, 1, syn1neg + l2, 1);
+           if (f > MAX_EXP) g = (label - 1) * alpha;
+           else if (f < -MAX_EXP) g = (label - 0) * alpha;
+           else g = (label - expTable[(int)((f + MAX_EXP) * (EXP_TABLE_SIZE / MAX_EXP / 2))]) * alpha;
+-          for (c = 0; c < layer1_size; c++) neu1e[c] += g * syn1neg[c + l2];
+-          for (c = 0; c < layer1_size; c++) syn1neg[c + l2] += g * syn0[c + l1];
++          cblas_saxpy(layer1_size, g, syn1neg + l2, 1, neu1e, 1);
++          cblas_saxpy(layer1_size, g, syn0 + l1, 1, syn1neg + l2, 1);
+         }
+         // Learn weights input -> hidden
+-        for (c = 0; c < layer1_size; c++) syn0[c + l1] += neu1e[c];
++        cblas_saxpy(layer1_size, 1, neu1e, 1, syn0 + l1, 1);
+       }
+     }
+     sentence_position++;
