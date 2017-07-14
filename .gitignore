@@ -41,3 +41,4 @@
 *.patch
 /word2vec-local-vars-no-pthread-blas-alias-neg-no-funroll
 /word2vec-int
+/word2vec-longlong
