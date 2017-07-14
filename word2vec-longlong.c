@@ -24,7 +24,7 @@
 #define MAX_SENTENCE_LENGTH 1000
 #define MAX_CODE_LENGTH 40
 
-const int vocab_hash_size = 30000000;  // Maximum 30 * 0.7 = 21M words in the vocabulary
+const long long vocab_hash_size = 30000000ll;  // Maximum 30 * 0.7 = 21M words in the vocabulary
 
 typedef float real;                    // Precision of float numbers
 
@@ -38,7 +38,7 @@ char train_file[MAX_STRING], output_file[MAX_STRING];
 char save_vocab_file[MAX_STRING], read_vocab_file[MAX_STRING];
 struct vocab_word *vocab;
 int binary = 0, cbow = 1, debug_mode = 2, window = 5, min_count = 5, num_threads = 12, min_reduce = 1;
-int *vocab_hash;
+long long *vocab_hash;
 long long vocab_max_size = 1000, vocab_size = 0, layer1_size = 100;
 long long train_words = 0, word_count_actual = 0, iter = 5, file_size = 0, classes = 0;
 real alpha = 0.025, starting_alpha, sample = 1e-3;
@@ -46,7 +46,7 @@ real *syn0, *syn1, *syn1neg, *expTable;
 clock_t start;
 
 int hs = 0, negative = 5;
-const int table_size = 1e8;
+const long long table_size = 1e8;
 long long *table;
 
 void InitUnigramTable() {
@@ -69,7 +69,8 @@ void InitUnigramTable() {
 
 // Reads a single word from a file, assuming space + tab + EOL to be word boundaries
 void ReadWord(char *word, FILE *fin, char *eof) {
-  int a = 0, ch;
+  long long a = 0;
+  int ch;
   while (1) {
     ch = fgetc_unlocked(fin);
     if (ch == EOF) {
@@ -95,7 +96,7 @@ void ReadWord(char *word, FILE *fin, char *eof) {
 }
 
 // Returns hash value of a word
-int GetWordHash(char *word) {
+long long GetWordHash(char *word) {
   unsigned long long a, hash = 0;
   for (a = 0; a < strlen(word); a++) hash = hash * 257 + word[a];
   hash = hash % vocab_hash_size;
@@ -103,8 +104,8 @@ int GetWordHash(char *word) {
 }
 
 // Returns position of a word in the vocabulary; if the word is not found, returns -1
-int SearchVocab(char *word) {
-  unsigned int hash = GetWordHash(word);
+long long SearchVocab(char *word) {
+  unsigned long long hash = GetWordHash(word);
   while (1) {
     if (vocab_hash[hash] == -1) return -1;
     if (!strcmp(word, vocab[vocab_hash[hash]].word)) return vocab_hash[hash];
@@ -114,7 +115,7 @@ int SearchVocab(char *word) {
 }
 
 // Reads a word and returns its index in the vocabulary
-int ReadWordIndex(FILE *fin, char *eof) {
+long long ReadWordIndex(FILE *fin, char *eof) {
   char word[MAX_STRING], eof_l = 0;
   ReadWord(word, fin, &eof_l);
   if (eof_l) {
@@ -125,8 +126,8 @@ int ReadWordIndex(FILE *fin, char *eof) {
 }
 
 // Adds a word to the vocabulary
-int AddWordToVocab(char *word) {
-  unsigned int hash, length = strlen(word) + 1;
+long long AddWordToVocab(char *word) {
+  unsigned long long hash, length = strlen(word) + 1;
   if (length > MAX_STRING) length = MAX_STRING;
   vocab[vocab_size].word = (char *)calloc(length, sizeof(char));
   strcpy(vocab[vocab_size].word, word);
@@ -153,8 +154,8 @@ int VocabCompare(const void *a, const void *b) {
 
 // Sorts the vocabulary by frequency using word counts
 void SortVocab() {
-  int a, size;
-  unsigned int hash;
+  long long a, size;
+  unsigned long long hash;
   // Sort the vocabulary and keep </s> at the first position
   qsort(&vocab[1], vocab_size - 1, sizeof(struct vocab_word), VocabCompare);
   for (a = 0; a < vocab_hash_size; a++) vocab_hash[a] = -1;
@@ -183,8 +184,8 @@ void SortVocab() {
 
 // Reduces the vocabulary by removing infrequent tokens
 void ReduceVocab() {
-  int a, b = 0;
-  unsigned int hash;
+  long long a, b = 0;
+  unsigned long long hash;
   for (a = 0; a < vocab_size; a++) if (vocab[a].cn > min_reduce) {
     vocab[b].cn = vocab[a].cn;
     vocab[b].word = vocab[a].word;
@@ -704,7 +705,7 @@ int main(int argc, char **argv) {
   if ((i = ArgPos((char *)"-min-count", argc, argv)) > 0) min_count = atoi(argv[i + 1]);
   if ((i = ArgPos((char *)"-classes", argc, argv)) > 0) classes = atoi(argv[i + 1]);
   vocab = (struct vocab_word *)calloc(vocab_max_size, sizeof(struct vocab_word));
-  vocab_hash = (int *)calloc(vocab_hash_size, sizeof(int));
+  vocab_hash = (long long *)calloc(vocab_hash_size, sizeof(long long));
   expTable = (real *)malloc((EXP_TABLE_SIZE + 1) * sizeof(real));
   for (i = 0; i < EXP_TABLE_SIZE; i++) {
     expTable[i] = exp((i / (real)EXP_TABLE_SIZE * 2 - 1) * MAX_EXP); // Precompute the exp() table
