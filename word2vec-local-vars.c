@@ -652,8 +652,14 @@ void TrainModel(real* expTable, struct vocab_word** vocab, int* vocab_hash) {
   }
   fclose(fo);
   free(syn0);
-  free(syn1);
-  free(syn1neg);
+  if (hs) {
+    free(syn1);
+  }
+  if (negative > 0) {
+    free(syn1neg);
+    free(table);
+  }
+  free(pt);
 }
 
 int ArgPos(char *str, int argc, char **argv) {
@@ -747,5 +753,13 @@ int main(int argc, char **argv) {
   }
   TrainModel(expTable, &vocab, vocab_hash);
   free(expTable);
+  free(vocab_hash);
+  long long a;
+  for (a = 0; a < vocab_size; a++) {
+    free(vocab[a].word);
+    free(vocab[a].code);
+    free(vocab[a].point);
+  }
+  free(vocab);
   return 0;
 }
