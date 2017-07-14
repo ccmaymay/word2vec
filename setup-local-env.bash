@@ -7,6 +7,7 @@ then
     curl -L http://github.com/xianyi/OpenBLAS/archive/v0.2.19.tar.gz | tar -xz
     cd OpenBLAS-0.2.19
     make
+    cd ..
 fi
 
 if command -v conda && ! [ -d cenv ]
