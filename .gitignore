@@ -41,6 +41,7 @@ athena/
 *.pdf
 word2vec-blas-alias-neg
 word2vec-int
+word2vec-comments
 word2vec-longlong
 OpenBLAS-0.2.19/
 patch-tmp/
