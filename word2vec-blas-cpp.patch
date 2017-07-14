@@ -1,0 +1,18 @@
+--- word2vec.c	2017-07-11 15:57:59.319114739 -0400
++++ word2vec.cpp	2017-07-14 12:10:35.935184878 -0400
+@@ -27,6 +27,7 @@
+ #ifdef __APPLE__
+ #include <Accelerate/Accelerate.h>
+ #else
++extern "C" {
+ void cblas_saxpy(const int N, const float alpha, const float* X,
+                  const int incX, float* Y, const int incY);
+ float cblas_sdot(const int N, const float* X, const int incX,
+@@ -34,6 +35,7 @@
+ float cblas_snrm2(const int N, const float* X, const int incX);
+ void cblas_sscal(const int N, const float alpha, float* X,
+                  const int incX);
++}
+ #endif
+ 
+ const int vocab_hash_size = 30000000;  // Maximum 30 * 0.7 = 21M words in the vocabulary

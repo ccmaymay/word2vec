@@ -6,7 +6,8 @@ CFLAGS_NO_FUNROLL := -lm -pthread -O3 -march=native -Wall -Wno-unused-result
 CFLAGS_NO_MARCH := -lm -pthread -O3 -Wall -funroll-loops -Wno-unused-result
 CFLAGS_NO_O3 := -lm -pthread -O2 -march=native -Wall -funroll-loops -Wno-unused-result
 CXXFLAGS := -std=gnu++11 $(CFLAGS)
-CXXFLAGS_NO_FUNROLL := -std=gnu++11 $(CFLAGS_NO_FUNROLL)
+
+PATCH_TMP := patch-tmp
 
 CBLAS_FLAGS ?= -lopenblas
 
@@ -16,7 +17,7 @@ CUSTOM_WORD2VEC_MAINS := \
 	word2vec-no-funroll word2vec-no-march word2vec-no-o3 \
 	word2vec-athena-neg word2vec-reservoir-neg word2vec-alias-neg \
 	word2vec-athena word2vec-blas word2vec-naive-neg \
-	word2vec-local-vars-no-pthread-blas-alias-neg-no-funroll
+	word2vec-blas-alias-neg
 
 WORD2VEC_MAINS := \
 	word2vec word2vec-static-window \
@@ -41,11 +42,22 @@ all: runtime.tab host.txt
 _math.o: _math.cpp _math.h
 	$(CXX) $< -o $@ -c $(CXXFLAGS)
 
-word2vec-athena word2vec-athena-neg word2vec-reservoir-neg word2vec-alias-neg word2vec-naive-neg: %: %.c _math.o
+word2vec-athena word2vec-athena-neg word2vec-reservoir-neg word2vec-alias-neg word2vec-naive-neg: %: %.cpp _math.o
 	$(CXX) $^ -o $@ $(CXXFLAGS)
 
-word2vec-local-vars-no-pthread-blas-alias-neg-no-funroll: word2vec-local-vars-no-pthread-blas-alias-neg.c _math.o
-	$(CXX) $^ -o $@ $(CBLAS_FLAGS) $(CXXFLAGS_NO_FUNROLL)
+word2vec-blas-alias-neg.cpp: word2vec.c word2vec-blas.patch word2vec-blas-cpp.patch word2vec-alias-neg.patch
+	rm -rf $(PATCH_TMP)
+	mkdir $(PATCH_TMP)
+	cp $^ $(PATCH_TMP)
+	cd $(PATCH_TMP) && \
+		patch < word2vec-blas.patch && \
+		patch < word2vec-blas-cpp.patch && \
+		patch < word2vec-alias-neg.patch && \
+		cp $< ../$@
+	rm -rf $(PATCH_TMP)
+
+word2vec-blas-alias-neg: word2vec-blas-alias-neg.cpp _math.o
+	$(CXX) $^ -o $@ $(CBLAS_FLAGS) $(CXXFLAGS)
 
 word2vec-no-funroll: word2vec.c
 	$(CC) $< -o $@ $(CFLAGS_NO_FUNROLL)
@@ -61,9 +73,6 @@ word2vec-blas: word2vec-blas.c
 
 word2phrase word2vec-effective-tokens distance word-analogy compute-accuracy $(WORD2VEC_MAINS): %: %.c
 	$(CC) $< -o $@ $(CFLAGS)
-
-word2vec-%.patch: word2vec.c word2vec-%.c
-	diff -U 3 $^ > $@ || true
 
 text8:
 	curl http://mattmahoney.net/dc/text8.zip | gunzip > text8
@@ -118,3 +127,4 @@ clean:
 	rm -f $(WORD2VEC_MAINS)
 	rm -f $(CUSTOM_WORD2VEC_MAINS)
 	rm -f $(SEPARATE_RUNTIME_TABS) runtime.tab cpuinfo.txt vocab
+	rm -rf $(PATCH_TMP)

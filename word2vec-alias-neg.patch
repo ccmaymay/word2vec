@@ -1,0 +1,62 @@
+--- word2vec.c	2017-07-14 12:04:27.108158044 -0400
++++ word2vec-alias-neg.c	2017-07-13 18:02:41.184587480 -0400
+@@ -18,6 +18,8 @@
+ #include <math.h>
+ #include <pthread.h>
+ 
++#include "_math.h"
++
+ #define MAX_STRING 100
+ #define EXP_TABLE_SIZE 1000
+ #define MAX_EXP 6
+@@ -46,25 +48,17 @@
+ clock_t start;
+ 
+ int hs = 0, negative = 5;
+-const int table_size = 1e8;
+-int *table;
++AliasSampler<int> *table;
+ 
+ void InitUnigramTable() {
+-  int a, i;
++  int a;
+   double train_words_pow = 0;
+-  double d1, power = 0.75;
+-  table = (int *)malloc(table_size * sizeof(int));
++  double power = 0.75;
++  std::vector<float> probabilities(vocab_size);
+   for (a = 0; a < vocab_size; a++) train_words_pow += pow(vocab[a].cn, power);
+-  i = 0;
+-  d1 = pow(vocab[i].cn, power) / train_words_pow;
+-  for (a = 0; a < table_size; a++) {
+-    table[a] = i;
+-    if (a / (double)table_size > d1) {
+-      i++;
+-      d1 += pow(vocab[i].cn, power) / train_words_pow;
+-    }
+-    if (i >= vocab_size) i = vocab_size - 1;
+-  }
++  for (a = 0; a < vocab_size; a++)
++    probabilities[a] = pow(vocab[a].cn, power) / train_words_pow;
++  table = new AliasSampler<int>(probabilities);
+ }
+ 
+ // Reads a single word from a file, assuming space + tab + EOL to be word boundaries
+@@ -468,7 +462,7 @@
+             label = 1;
+           } else {
+             next_random = next_random * (unsigned long long)25214903917 + 11;
+-            target = table[(next_random >> 16) % table_size];
++            target = table->sample();
+             if (target == 0) target = next_random % (vocab_size - 1) + 1;
+             if (target == word) continue;
+             label = 0;
+@@ -524,7 +518,7 @@
+             label = 1;
+           } else {
+             next_random = next_random * (unsigned long long)25214903917 + 11;
+-            target = table[(next_random >> 16) % table_size];
++            target = table->sample();
+             if (target == 0) target = next_random % (vocab_size - 1) + 1;
+             if (target == word) continue;
+             label = 0;

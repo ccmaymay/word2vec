@@ -38,8 +38,8 @@ compute-accuracy
 host.txt
 athena/
 *.pdf
-*.patch
-word2vec-local-vars-no-pthread-blas-alias-neg-no-funroll
+word2vec-blas-alias-neg
 word2vec-int
 word2vec-longlong
 OpenBLAS-0.2.19/
+patch-tmp/
