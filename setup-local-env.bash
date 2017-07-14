@@ -11,8 +11,8 @@ fi
 
 if command -v conda && ! [ -d cenv ]
 then
-    conda create -p cenv
-    conda install -p cenv gensim==2.2.0
+    conda create -y -p cenv
+    conda install -y -p cenv gensim==2.2.0
     python_commands='source activate cenv'
 elif command -v virtualenv && ! [ -d venv ]
 then
