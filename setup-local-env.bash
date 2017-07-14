@@ -26,11 +26,10 @@ else
     python_commands=
 fi
 
-cat << EOF
-
-Use the following bash commands to add the installed software to your environment.
-
-export LIBRARY_PATH="\$PWD/OpenBLAS-0.2.19:\$LIBRARY_PATH"
-export LD_LIBRARY_PATH="\$PWD/OpenBLAS-0.2.19:\$LD_LIBRARY_PATH"
-$python_commands
-EOF
+echo
+echo '----------------------------------------------------------------------------------'
+echo 'Use the following bash commands to add the installed software to your environment.'
+echo
+echo 'export LIBRARY_PATH="$PWD/OpenBLAS-0.2.19:$LIBRARY_PATH"'
+echo 'export LD_LIBRARY_PATH="$PWD/OpenBLAS-0.2.19:$LD_LIBRARY_PATH"'
+echo "$python_commands"
