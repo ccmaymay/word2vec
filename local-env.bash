@@ -10,6 +10,11 @@ then
     cd ..
 fi
 
+export C_INCLUDE_PATH="$PWD/OpenBLAS-0.2.19:$C_INCLUDE_PATH"
+export CPLUS_INCLUDE_PATH="$PWD/OpenBLAS-0.2.19:$CPLUS_INCLUDE_PATH"
+export LIBRARY_PATH="$PWD/OpenBLAS-0.2.19:$LIBRARY_PATH"
+export LD_LIBRARY_PATH="$PWD/OpenBLAS-0.2.19:$LD_LIBRARY_PATH"
+
 if command -v conda
 then
     if ! [ -d cenv ]
@@ -40,6 +45,8 @@ echo
 echo '----------------------------------------------------------------------------------'
 echo 'Use the following bash commands to add the installed software to your environment.'
 echo
+echo 'export C_INCLUDE_PATH="$PWD/OpenBLAS-0.2.19:$C_INCLUDE_PATH"'
+echo 'export CPLUS_INCLUDE_PATH="$PWD/OpenBLAS-0.2.19:$CPLUS_INCLUDE_PATH"'
 echo 'export LIBRARY_PATH="$PWD/OpenBLAS-0.2.19:$LIBRARY_PATH"'
 echo 'export LD_LIBRARY_PATH="$PWD/OpenBLAS-0.2.19:$LD_LIBRARY_PATH"'
 echo "$python_commands"
