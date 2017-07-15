@@ -15,7 +15,8 @@ then
     if ! [ -d cenv ]
     then
         conda create -y -p cenv
-        conda install -y -p cenv gensim==2.2.0
+        conda install -y -p cenv numpy
+        conda install -y -p cenv gensim
     fi
     python_commands='source activate cenv'
 elif command -v virtualenv
@@ -24,12 +25,14 @@ then
     then
         virtualenv venv
         source venv/bin/activate
-        pip install gensim==2.2.0
+        pip install numpy
+        pip install gensim
         deactivate
     fi
     python_commands='source venv/bin/activate'
 else
-    pip install --user gensim==2.2.0
+    pip install --user numpy
+    pip install --user gensim
     python_commands=
 fi
 
