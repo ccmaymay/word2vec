@@ -106,7 +106,7 @@ runtime-gensim-word2vec.tab: gensim-word2vec.py text8 vocab.gensim
 	./time.bash $(NUM_TRIALS) $@ $(PYTHON) $< train-model text8 vocab.gensim /dev/null
 
 host.txt:
-	rm -f $@
+	hostname > $@
 	echo >> $@; cat /proc/cpuinfo >> $@
 	echo >> $@; free -h >> $@
 	echo >> $@; $(CC) --version >> $@ 2>&1
