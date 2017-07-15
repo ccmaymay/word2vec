@@ -7,6 +7,7 @@ then
     curl -L http://github.com/xianyi/OpenBLAS/archive/v0.2.19.tar.gz | tar -xz
     cd OpenBLAS-0.2.19
     make
+    ln -s $PWD/libopenblas.so $PWD/libblas.so
     cd ..
 fi
 
@@ -14,7 +15,7 @@ export C_INCLUDE_PATH="$PWD/OpenBLAS-0.2.19:$C_INCLUDE_PATH"
 export CPLUS_INCLUDE_PATH="$PWD/OpenBLAS-0.2.19:$CPLUS_INCLUDE_PATH"
 export LIBRARY_PATH="$PWD/OpenBLAS-0.2.19:$LIBRARY_PATH"
 export LD_LIBRARY_PATH="$PWD/OpenBLAS-0.2.19:$LD_LIBRARY_PATH"
-export BLAS="$PWD/OpenBLAS-0.2.19/libopenblas.so"
+export BLAS="$PWD/OpenBLAS-0.2.19/libblas.so"
 export LAPACK=
 
 if command -v conda
