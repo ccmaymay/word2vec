@@ -45,3 +45,6 @@ word2vec-comments
 word2vec-longlong
 OpenBLAS-0.2.19/
 patch-tmp/
+venv
+cenv
+text8.split
