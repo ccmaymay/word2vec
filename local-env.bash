@@ -10,20 +10,26 @@ then
     cd ..
 fi
 
-if command -v conda && ! [ -d cenv ]
+if command -v conda
 then
-    conda create -y -p cenv
-    conda install -y -p cenv gensim==2.2.0
+    if ! [ -d cenv ]
+    then
+        conda create -y -p cenv
+        conda install -y -p cenv gensim==2.2.0
+    fi
     python_commands='source activate cenv'
-elif command -v virtualenv && ! [ -d venv ]
+elif command -v virtualenv
 then
-    virtualenv venv
-    source venv/bin/activate
-    pip install gensim==2.2.0
-    deactivate
+    if ! [ -d venv ]
+    then
+        virtualenv venv
+        source venv/bin/activate
+        pip install gensim==2.2.0
+        deactivate
+    fi
     python_commands='source venv/bin/activate'
 else
-    pip install --user -r requirements.txt
+    pip install --user gensim==2.2.0
     python_commands=
 fi
 
