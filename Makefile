@@ -1,17 +1,20 @@
-CC := gcc
-CXX := g++
+CC ?= gcc
+CXX ?= g++
 #Using -Ofast instead of -O3 might result in faster code, but is supported only by newer GCC versions
-CFLAGS := -lm -pthread -O3 -march=native -Wall -funroll-loops -Wno-unused-result
-CFLAGS_NO_FUNROLL := -lm -pthread -O3 -march=native -Wall -Wno-unused-result
-CFLAGS_NO_MARCH := -lm -pthread -O3 -Wall -funroll-loops -Wno-unused-result
-CFLAGS_NO_O3 := -lm -pthread -O2 -march=native -Wall -funroll-loops -Wno-unused-result
-CXXFLAGS := -std=gnu++11 $(CFLAGS)
+CFLAGS += -lm -pthread -O3 -march=native -Wall -funroll-loops -Wno-unused-result
+CFLAGS_NO_FUNROLL += -lm -pthread -O3 -march=native -Wall -Wno-unused-result
+CFLAGS_NO_MARCH += -lm -pthread -O3 -Wall -funroll-loops -Wno-unused-result
+CFLAGS_NO_O3 += -lm -pthread -O2 -march=native -Wall -funroll-loops -Wno-unused-result
+CXXFLAGS += -std=gnu++11 $(CFLAGS)
 
-PATCH_TMP := patch-tmp
+PATCH_TMP ?= patch-tmp
 
 CBLAS_FLAGS ?= -lopenblas
 
-PYTHON := python
+PYTHON ?= python
+TRAIN_FILE ?= text8
+
+NUM_TRIALS ?= 10
 
 CUSTOM_WORD2VEC_MAINS := \
 	word2vec-no-funroll word2vec-no-march word2vec-no-o3 \
@@ -33,8 +36,6 @@ SEPARATE_RUNTIME_TABS := \
 	$(SEPARATE_WORD2VEC_RUNTIME_TABS) \
 	runtime-athena-word2vec.tab runtime-athena-spacesaving-word2vec.tab \
 	runtime-gensim-word2vec.tab
-
-NUM_TRIALS ?= 10
 
 .PHONY: all
 all: runtime.tab host.txt
@@ -80,30 +81,33 @@ word2phrase word2vec-effective-tokens distance word-analogy compute-accuracy $(W
 text8:
 	curl http://mattmahoney.net/dc/text8.zip | gunzip > text8
 
-vocab: word2vec text8
-	./word2vec -train text8 -save-vocab vocab
+text8.split:
+	$(PYTHON) split-text8.py text8 text8.split
+
+vocab: word2vec $(TRAIN_FILE)
+	./word2vec -train $(TRAIN_FILE) -save-vocab vocab
 
 vocab.athena: athena/build/lib/word2vec-vocab-to-naive-lm vocab
 	./$^ -s 1e-3 $@
 
-vocab.gensim: gensim-word2vec.py text8
-	$(PYTHON) $< build-vocab text8 $@
+vocab.gensim: gensim-word2vec.py $(TRAIN_FILE)
+	$(PYTHON) $< build-vocab $(TRAIN_FILE) $@
 
 runtime.tab: $(SEPARATE_RUNTIME_TABS)
 	sed -s '1!d' $< > $@
 	sed -s '1d' $^ >> $@
 
-$(SEPARATE_WORD2VEC_RUNTIME_TABS): runtime-%.tab: % text8 vocab
-	./time.bash $(NUM_TRIALS) $@ ./$< -train text8 -read-vocab vocab -output /dev/null -cbow 0 -hs 0 -binary 1 -iter 1 -threads 1
+$(SEPARATE_WORD2VEC_RUNTIME_TABS): runtime-%.tab: % $(TRAIN_FILE) vocab
+	./time.bash $(NUM_TRIALS) $@ ./$< -train $(TRAIN_FILE) -read-vocab vocab -output /dev/null -cbow 0 -hs 0 -binary 1 -iter 1 -threads 1
 
-runtime-athena-word2vec.tab: athena/build/lib/word2vec-train-raw text8 vocab.athena
-	./time.bash $(NUM_TRIALS) $@ ./$< -e 100 -n 5 -c 5 -t 1e6 -k 0.025 -l vocab.athena text8 /dev/null
+runtime-athena-word2vec.tab: athena/build/lib/word2vec-train-raw $(TRAIN_FILE) vocab.athena
+	./time.bash $(NUM_TRIALS) $@ ./$< -e 100 -n 5 -c 5 -t 1e6 -k 0.025 -l vocab.athena $(TRAIN_FILE) /dev/null
 
-runtime-athena-spacesaving-word2vec.tab: athena/build/lib/spacesaving-word2vec-train-raw text8
-	./time.bash $(NUM_TRIALS) $@ ./$< -v 1000000 -e 100 -n 5 -c 5 -t 1e6 -k 0.025 text8 /dev/null
+runtime-athena-spacesaving-word2vec.tab: athena/build/lib/spacesaving-word2vec-train-raw $(TRAIN_FILE)
+	./time.bash $(NUM_TRIALS) $@ ./$< -v 1000000 -e 100 -n 5 -c 5 -t 1e6 -k 0.025 $(TRAIN_FILE) /dev/null
 
-runtime-gensim-word2vec.tab: gensim-word2vec.py text8 vocab.gensim
-	./time.bash $(NUM_TRIALS) $@ $(PYTHON) $< train-model text8 vocab.gensim /dev/null
+runtime-gensim-word2vec.tab: gensim-word2vec.py $(TRAIN_FILE) vocab.gensim
+	./time.bash $(NUM_TRIALS) $@ $(PYTHON) $< train-model $(TRAIN_FILE) vocab.gensim /dev/null
 
 host.txt:
 	hostname > $@
