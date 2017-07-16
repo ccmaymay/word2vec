@@ -46,17 +46,6 @@ _math.o: _math.cpp _math.h
 word2vec-athena word2vec-athena-neg word2vec-reservoir-neg word2vec-alias-neg word2vec-naive-neg: %: %.cpp _math.o
 	$(CXX) $^ -o $@ $(CXXFLAGS)
 
-word2vec-blas-alias-neg.cpp: word2vec.c word2vec-blas.patch word2vec-blas-cpp.patch word2vec-alias-neg.patch
-	rm -rf $(PATCH_TMP)
-	mkdir $(PATCH_TMP)
-	cp $^ $(PATCH_TMP)
-	cd $(PATCH_TMP) && \
-		patch < word2vec-blas.patch && \
-		patch < word2vec-blas-cpp.patch && \
-		patch < word2vec-alias-neg.patch && \
-		cp $< ../$@
-	rm -rf $(PATCH_TMP)
-
 word2vec-blas-alias-neg: word2vec-blas-alias-neg.cpp _math.o
 	$(CXX) $^ -o $@ $(CBLAS_FLAGS) $(CXXFLAGS)
 
