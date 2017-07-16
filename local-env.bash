@@ -49,8 +49,8 @@ echo
 echo '----------------------------------------------------------------------------------'
 echo 'Use the following bash commands to add the installed software to your environment.'
 echo
-echo 'export C_INCLUDE_PATH="$PWD:$C_INCLUDE_PATH"'
-echo 'export CPLUS_INCLUDE_PATH="$PWD:$CPLUS_INCLUDE_PATH"'
-echo 'export LIBRARY_PATH="$PWD:$LIBRARY_PATH"'
-echo 'export LD_LIBRARY_PATH="$PWD:$LD_LIBRARY_PATH"'
+echo 'export C_INCLUDE_PATH="$PWD/include:$C_INCLUDE_PATH"'
+echo 'export CPLUS_INCLUDE_PATH="$PWD/include:$CPLUS_INCLUDE_PATH"'
+echo 'export LIBRARY_PATH="$PWD/lib:$LIBRARY_PATH"'
+echo 'export LD_LIBRARY_PATH="$PWD/lib:$LD_LIBRARY_PATH"'
 echo "$python_commands"
