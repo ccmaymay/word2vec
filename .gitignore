@@ -48,3 +48,7 @@ patch-tmp/
 venv
 cenv
 text8.split
+include/
+lib/
+lib64/
+bin/

@@ -5,18 +5,17 @@ set -e
 if ! [ -d OpenBLAS-0.2.19 ]
 then
     curl -L http://github.com/xianyi/OpenBLAS/archive/v0.2.19.tar.gz | tar -xz
+    OPENBLAS_PREFIX=$PWD
     cd OpenBLAS-0.2.19
     make
-    ln -s $PWD/libopenblas.so $PWD/libblas.so
+    make install PREFIX=$OPENBLAS_PREFIX
     cd ..
 fi
 
-export C_INCLUDE_PATH="$PWD/OpenBLAS-0.2.19:$C_INCLUDE_PATH"
-export CPLUS_INCLUDE_PATH="$PWD/OpenBLAS-0.2.19:$CPLUS_INCLUDE_PATH"
-export LIBRARY_PATH="$PWD/OpenBLAS-0.2.19:$LIBRARY_PATH"
-export LD_LIBRARY_PATH="$PWD/OpenBLAS-0.2.19:$LD_LIBRARY_PATH"
-export BLAS="$PWD/OpenBLAS-0.2.19/libblas.so"
-export LAPACK=
+export C_INCLUDE_PATH="$OPENBLAS_PREFIX:$C_INCLUDE_PATH"
+export CPLUS_INCLUDE_PATH="$OPENBLAS_PREFIX:$CPLUS_INCLUDE_PATH"
+export LIBRARY_PATH="$OPENBLAS_PREFIX:$LIBRARY_PATH"
+export LD_LIBRARY_PATH="$OPENBLAS_PREFIX:$LD_LIBRARY_PATH"
 
 if command -v conda
 then
@@ -33,15 +32,16 @@ then
     then
         virtualenv venv
         source venv/bin/activate
+        pip install --upgrade pip
         pip install numpy
         pip install gensim
         deactivate
     fi
     python_commands='source venv/bin/activate'
 else
-    pip install --user numpy
-    pip install --user gensim
-    python_commands=
+    echo >&2
+    echo 'Error: please install conda or virtualenv before running this script.' >&2
+    exit 1
 fi
 
 echo
