@@ -2,7 +2,7 @@
 
 set -e
 
-if ! [ -d OpenBLAS-0.2.19 ]
+if ! [ -d lib ]
 then
     curl -L http://github.com/xianyi/OpenBLAS/archive/v0.2.19.tar.gz | tar -xz
     OPENBLAS_PREFIX=$PWD
@@ -10,6 +10,7 @@ then
     make
     make install PREFIX=$OPENBLAS_PREFIX
     cd ..
+    rm -rf OpenBLAS-0.2.19
 fi
 
 export C_INCLUDE_PATH="$OPENBLAS_PREFIX/include:$C_INCLUDE_PATH"
@@ -48,8 +49,8 @@ echo
 echo '----------------------------------------------------------------------------------'
 echo 'Use the following bash commands to add the installed software to your environment.'
 echo
-echo 'export C_INCLUDE_PATH="$PWD/OpenBLAS-0.2.19:$C_INCLUDE_PATH"'
-echo 'export CPLUS_INCLUDE_PATH="$PWD/OpenBLAS-0.2.19:$CPLUS_INCLUDE_PATH"'
-echo 'export LIBRARY_PATH="$PWD/OpenBLAS-0.2.19:$LIBRARY_PATH"'
-echo 'export LD_LIBRARY_PATH="$PWD/OpenBLAS-0.2.19:$LD_LIBRARY_PATH"'
+echo 'export C_INCLUDE_PATH="$PWD:$C_INCLUDE_PATH"'
+echo 'export CPLUS_INCLUDE_PATH="$PWD:$CPLUS_INCLUDE_PATH"'
+echo 'export LIBRARY_PATH="$PWD:$LIBRARY_PATH"'
+echo 'export LD_LIBRARY_PATH="$PWD:$LD_LIBRARY_PATH"'
 echo "$python_commands"
