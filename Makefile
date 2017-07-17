@@ -20,7 +20,8 @@ CUSTOM_WORD2VEC_MAINS := \
 	word2vec-no-funroll word2vec-no-march word2vec-no-o3 \
 	word2vec-athena-neg word2vec-reservoir-neg word2vec-alias-neg \
 	word2vec-athena word2vec-blas word2vec-naive-neg \
-	word2vec-blas-alias-neg word2vec-local-vars-more
+	word2vec-blas-alias-neg word2vec-local-vars-more \
+	word2vec-local-vars-more-more
 
 WORD2VEC_MAINS := \
 	word2vec word2vec-static-window \
@@ -69,7 +70,7 @@ word2vec-no-march: word2vec.c
 word2vec-no-o3: word2vec.c
 	$(CC) $< -o $@ $(CFLAGS_NO_O3)
 
-word2vec-local-vars-more: word2vec-local-vars-more.c
+word2vec-local-vars-more word2vec-local-vars-more-more: %: %.c
 	$(CC) $< -o $@ $(CFLAGS) -std=gnu99
 
 word2vec-blas: word2vec-blas.c

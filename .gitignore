@@ -21,6 +21,7 @@ word2vec-unsmoothed-neg
 word2vec-uniform-neg
 word2vec-local-vars
 word2vec-local-vars-more
+word2vec-local-vars-more-more
 word2vec-no-pthread
 word2vec-no-subsample
 word2vec-no-o3
