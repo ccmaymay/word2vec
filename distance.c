@@ -69,7 +69,7 @@ int main(int argc, char **argv) {
     for (a = 0; a < N; a++) bestw[a][0] = 0;
     printf("Enter word or sentence (EXIT to break): ");
     a = 0;
-    while (1) {
+    while (! feof(stdin)) {
       st1[a] = fgetc(stdin);
       if ((st1[a] == '\n') || (a >= max_size - 1)) {
         st1[a] = 0;
@@ -77,7 +77,7 @@ int main(int argc, char **argv) {
       }
       a++;
     }
-    if (!strcmp(st1, "EXIT")) break;
+    if (!strcmp(st1, "EXIT") || feof(stdin)) break;
     cn = 0;
     b = 0;
     c = 0;

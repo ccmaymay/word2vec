@@ -6,6 +6,7 @@ CFLAGS_NO_FUNROLL += -lm -pthread -O3 -march=native -Wall -Wno-unused-result
 CFLAGS_NO_MARCH += -lm -pthread -O3 -Wall -funroll-loops -Wno-unused-result
 CFLAGS_NO_O3 += -lm -pthread -O2 -march=native -Wall -funroll-loops -Wno-unused-result
 CXXFLAGS += -std=gnu++11 $(CFLAGS)
+QUERY ?= bush
 
 PATCH_TMP ?= patch-tmp
 
@@ -32,6 +33,12 @@ WORD2VEC_MAINS := \
 
 SEPARATE_WORD2VEC_RUNTIME_TABS := \
 	$(patsubst %,runtime-%.tab,$(WORD2VEC_MAINS) $(CUSTOM_WORD2VEC_MAINS))
+
+SEPARATE_WORD2VEC_MODELS := \
+	$(patsubst %,model-%.bin,$(WORD2VEC_MAINS) $(CUSTOM_WORD2VEC_MAINS))
+
+SEPARATE_WORD2VEC_QUERY_OUTPUTS := \
+	$(patsubst %,query-%.txt,$(WORD2VEC_MAINS) $(CUSTOM_WORD2VEC_MAINS))
 
 SEPARATE_RUNTIME_TABS := \
 	$(SEPARATE_WORD2VEC_RUNTIME_TABS) \
@@ -89,6 +96,15 @@ runtime.tab: $(SEPARATE_RUNTIME_TABS)
 
 $(SEPARATE_WORD2VEC_RUNTIME_TABS): runtime-%.tab: % $(TRAIN_FILE) vocab
 	./time.bash $(NUM_TRIALS) $@ ./$< -train $(TRAIN_FILE) -read-vocab vocab -output /dev/null -cbow 0 -hs 0 -binary 1 -iter 1 -threads 1
+
+$(SEPARATE_WORD2VEC_MODELS): model-%.bin: % $(TRAIN_FILE) vocab
+	./$< -train $(TRAIN_FILE) -read-vocab vocab -output $@ -cbow 0 -hs 0 -binary 1 -iter 1 -threads 1
+
+$(SEPARATE_WORD2VEC_QUERY_OUTPUTS): query-%.txt: model-%.bin distance
+	echo $(QUERY) | ./distance $< | sed '/^Enter word/d;1,/^--------/d' | awk '{ print $$1 }' > $@
+
+query.txt: $(SEPARATE_WORD2VEC_QUERY_OUTPUTS)
+	head $^ > $@
 
 runtime-athena-word2vec.tab: athena/build/lib/word2vec-train-raw $(TRAIN_FILE) vocab.athena
 	./time.bash $(NUM_TRIALS) $@ ./$< -e 100 -n 5 -c 5 -t 1e6 -k 0.025 -l vocab.athena $(TRAIN_FILE) /dev/null

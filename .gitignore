@@ -55,3 +55,6 @@ lib64/
 bin/
 word2vec-num-pairs
 word2vec-entropy
+model-*.bin
+query-*.txt
+query.txt
