@@ -65,7 +65,7 @@ word2vec-local-vars-more word2vec-local-vars-more-more: %: %.c
 word2vec-blas: word2vec-blas.c
 	$(CC) $< -o $@ $(CBLAS_FLAGS) $(CFLAGS)
 
-word2phrase word2vec-effective-tokens distance word-analogy compute-accuracy $(WORD2VEC_MAINS): %: %.c
+word2vec-num-pairs word2vec-entropy word2phrase word2vec-effective-tokens distance word-analogy compute-accuracy $(WORD2VEC_MAINS): %: %.c
 	$(CC) $< -o $@ $(CFLAGS)
 
 text8:
