@@ -11,6 +11,16 @@ vocab.gensim
 *.bak
 word2vec
 word2vec-athena
+word2vec-athena-more
+word2vec-athena-more-more
+word2vec-athena-more3
+word2vec-athena-more4
+word2vec-athena-more5
+word2vec-athena-more6
+word2vec-athena-more7
+word2vec-athena-more8
+word2vec-athena-more9
+word2vec-athena-more10
 word2vec-athena-neg
 word2vec-1-neg
 word2vec-static-window

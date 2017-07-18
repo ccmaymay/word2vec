@@ -1,11 +1,26 @@
 CC ?= gcc
 CXX ?= g++
-#Using -Ofast instead of -O3 might result in faster code, but is supported only by newer GCC versions
-CFLAGS += -lm -pthread -O3 -march=native -Wall -funroll-loops -Wno-unused-result
-CFLAGS_NO_FUNROLL += -lm -pthread -O3 -march=native -Wall -Wno-unused-result
-CFLAGS_NO_MARCH += -lm -pthread -O3 -Wall -funroll-loops -Wno-unused-result
-CFLAGS_NO_O3 += -lm -pthread -O2 -march=native -Wall -funroll-loops -Wno-unused-result
-CXXFLAGS += -std=gnu++11 $(CFLAGS)
+BASE_CFLAGS ?= -lm -pthread -Wall -Wno-unused-result
+CFLAGS += $(BASE_CFLAGS)
+CFLAGS_NO_FUNROLL += $(BASE_CFLAGS)
+CFLAGS_NO_MARCH += $(BASE_CFLAGS)
+CFLAGS_NO_O3 += $(BASE_CFLAGS)
+CXXFLAGS += -std=gnu++11 $(BASE_CFLAGS)
+
+ifdef DEBUG
+	CFLAGS += -O0 -g3 -gdwarf-2
+	CFLAGS_NO_FUNROLL += -O0 -g3 -gdwarf-2
+	CFLAGS_NO_MARCH += -O0 -g3 -gdwarf-2
+	CFLAGS_NO_O3 += -O0 -g3 -gdwarf-2
+	CXXFLAGS += -O0 -g3 -gdwarf-2
+else
+	CFLAGS += -O3 -march=native -funroll-loops
+	CFLAGS_NO_FUNROLL += -O3 -march=native
+	CFLAGS_NO_MARCH += -O3 -funroll-loops
+	CFLAGS_NO_O3 += -O2 -march=native -funroll-loops
+	CXXFLAGS += -O3 -march=native -funroll-loops
+endif
+
 QUERY ?= bush
 
 PATCH_TMP ?= patch-tmp
@@ -17,11 +32,23 @@ TRAIN_FILE ?= text8
 
 NUM_TRIALS ?= 10
 
-CUSTOM_WORD2VEC_MAINS := \
-	word2vec-no-funroll word2vec-no-march word2vec-no-o3 \
+WORD2VEC_ATHENA_MAINS := \
+	word2vec-athena word2vec-athena-more \
+	word2vec-athena-more-more word2vec-athena-more3 \
+	word2vec-athena-more4 word2vec-athena-more5 \
+	word2vec-athena-more6 word2vec-athena-more7 \
+	word2vec-athena-more8 word2vec-athena-more9 \
+	word2vec-athena-more10
+
+WORD2VEC_ATHENA_NEG_MAINS := \
 	word2vec-athena-neg word2vec-reservoir-neg word2vec-alias-neg \
-	word2vec-athena word2vec-blas word2vec-naive-neg \
-	word2vec-blas-alias-neg word2vec-local-vars-more \
+    word2vec-naive-neg
+
+CUSTOM_WORD2VEC_MAINS := \
+	$(WORD2VEC_ATHENA_MAINS) \
+	$(WORD2VEC_ATHENA_NEG_MAINS) \
+	word2vec-no-funroll word2vec-no-march word2vec-no-o3 \
+	word2vec-blas word2vec-blas-alias-neg word2vec-local-vars-more \
 	word2vec-local-vars-more-more
 
 WORD2VEC_MAINS := \
@@ -51,8 +78,11 @@ all: runtime.tab host.txt
 _math.o: _math.cpp _math.h
 	$(CXX) $< -o $@ -c $(CXXFLAGS)
 
-word2vec-athena word2vec-athena-neg word2vec-reservoir-neg word2vec-alias-neg word2vec-naive-neg: %: %.cpp _math.o
+$(WORD2VEC_ATHENA_NEG_MAINS): %: %.cpp _math.o
 	$(CXX) $^ -o $@ $(CXXFLAGS)
+
+$(WORD2VEC_ATHENA_MAINS): %: %.cpp athena/build/lib/libathena.a
+	$(CXX) $^ -o $@ $(CXXFLAGS) -fopenmp
 
 word2vec-blas-alias-neg: word2vec-blas-alias-neg.cpp _math.o
 	$(CXX) $^ -o $@ $(CBLAS_FLAGS) $(CXXFLAGS)
@@ -135,6 +165,9 @@ athena/build/lib/word2vec-train-raw: athena/Makefile
 
 athena/build/lib/word2vec-vocab-to-naive-lm: athena/Makefile
 	cd athena && make build/lib/word2vec-vocab-to-naive-lm
+
+athena/build/lib/libathena.a:
+	cd athena && make build/lib/libathena.a
 
 clean:
 	rm -f $(WORD2VEC_MAINS)
