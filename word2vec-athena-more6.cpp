@@ -126,6 +126,15 @@ int ReadWordIndex(const NaiveLanguageModel& language_model, FILE *fin, char *eof
   return language_model.lookup(word);
 }
 
+// Sorts the vocabulary by frequency using word counts
+void SortVocab(NaiveLanguageModel& language_model) {
+  long new_lm_size = 0;
+  for (int a = 0; a < language_model.size(); a++) if (language_model.count(a) >= min_count) {
+    ++new_lm_size;
+  }
+  language_model.truncate(new_lm_size);
+}
+
 // Reduces the vocabulary by removing infrequent tokens
 void ReduceVocab(NaiveLanguageModel& language_model) {
   long new_lm_size = 0;
@@ -159,7 +168,7 @@ void LearnVocabFromTrainFile(NaiveLanguageModel& language_model) {
     language_model.increment(word);
     if (language_model.size() > vocab_hash_size * 0.7) ReduceVocab(language_model);
   }
-  language_model.sort();
+  SortVocab(language_model);
   if (debug_mode > 0) {
     printf("Vocab size: %zu\n", language_model.size());
     printf("Words in train file: %zu\n", language_model.total());
@@ -188,12 +197,12 @@ void ReadVocab(NaiveLanguageModel& language_model) {
     char c;
     long long count = 0;
     fscanf(fin, "%lld%c", &count, &c);
-    if (count < 1) count = 1; // prevent LM from ignoring zero-count words
+    if (count < 1) count = min_count; // prevent LM from ignoring zero-count words
     for (long long j = 0; j < count; ++j) {
       language_model.increment(word);
     }
   }
-  language_model.sort();
+  SortVocab(language_model);
   if (debug_mode > 0) {
     printf("Vocab size: %zu\n", language_model.size());
     printf("Words in train file: %zu\n", language_model.total());
