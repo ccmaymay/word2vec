@@ -280,9 +280,6 @@ void TrainModelThread(real* input_embeddings,
     if (output_word_position >= sentence_length) {
       sentence_length = read_new_sentence(fi, language_model, &word_count,
                                           sen, &eof);
-      for (long long j = 0; j < word_count; ++j) {
-        sgd.step(0);
-      }
       output_word_position = 0;
     }
     const real alpha = sgd.get_rho(0);
@@ -343,6 +340,7 @@ void TrainModelThread(real* input_embeddings,
             input_embeddings + input_embeddings_offset);
     }
     output_word_position++;
+    sgd.step(0);
   }
   fclose(fi);
   free(output_word_gradient);

@@ -242,9 +242,6 @@ void TrainModelThread(WordContextFactorization& factorization,
     if (output_word_position >= sentence_length) {
       sentence_length = read_new_sentence(fi, language_model, &word_count,
                                           sen, &eof);
-      for (long long j = 0; j < word_count; ++j) {
-        sgd.step(0);
-      }
       output_word_position = 0;
     }
     const real alpha = sgd.get_rho(0);
@@ -303,6 +300,7 @@ void TrainModelThread(WordContextFactorization& factorization,
             factorization.get_word_embedding(input_word));
     }
     output_word_position++;
+    sgd.step(0);
   }
   fclose(fi);
   free(output_word_gradient);
