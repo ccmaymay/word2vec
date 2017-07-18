@@ -191,6 +191,7 @@ void ReadVocab(NaiveLanguageModel& language_model) {
     char c;
     long long count = 0;
     fscanf(fin, "%lld%c", &count, &c);
+    if (count < 1) count = 1; // prevent LM from ignoring zero-count words
     for (long long j = 0; j < count; ++j) {
       language_model.increment(word);
     }
