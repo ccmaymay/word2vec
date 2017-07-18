@@ -67,7 +67,7 @@ void zero_vector(long long n, real* v) {
 }
 
 // Reads a single word from a file, assuming space + tab + EOL to be word boundaries
-void ReadWord(char *word, FILE *fin, char *eof) {
+void ReadWord(char *word, FILE *fin, char *eof, char *eos) {
   int a = 0;
   while (1) {
     int ch = fgetc_unlocked(fin);
@@ -82,7 +82,7 @@ void ReadWord(char *word, FILE *fin, char *eof) {
         break;
       }
       if (ch == '\n') {
-        strcpy(word, (char *)"</s>");
+        *eos = 1;
         return;
       } else continue;
     }
@@ -94,11 +94,15 @@ void ReadWord(char *word, FILE *fin, char *eof) {
 }
 
 // Reads a word and returns its index in the vocabulary
-int ReadWordIndex(const NaiveLanguageModel& language_model, FILE *fin, char *eof) {
-  char word[MAX_STRING], eof_l = 0;
-  ReadWord(word, fin, &eof_l);
+int ReadWordIndex(const NaiveLanguageModel& language_model, FILE *fin, char *eof, char *eos) {
+  char word[MAX_STRING], eof_l = 0, eos_l = 0;
+  ReadWord(word, fin, &eof_l, &eos_l);
   if (eof_l) {
     *eof = 1;
+    return -1;
+  }
+  if (eos_l) {
+    *eos = 1;
     return -1;
   }
   return language_model.lookup(word);
@@ -131,12 +135,12 @@ void LearnVocabFromTrainFile(NaiveLanguageModel& language_model) {
     printf("ERROR: training data file not found!\n");
     exit(1);
   }
-  language_model.increment((char *)"</s>");
   while (1) {
     char word[MAX_STRING];
-    char eof = 0;
-    ReadWord(word, fin, &eof);
+    char eof = 0, eos = 0;
+    ReadWord(word, fin, &eof, &eos);
     if (eof) break;
+    if (eos) continue;
     wc++;
     if ((debug_mode > 1) && (wc >= 1000000)) {
       printf("%zuM%c", language_model.total() / 1000000, 13);
@@ -169,13 +173,13 @@ void ReadVocab(NaiveLanguageModel& language_model) {
   }
   while (1) {
     char word[MAX_STRING];
-    char eof = 0;
-    ReadWord(word, fin, &eof);
+    char eof = 0, eos = 0;
+    ReadWord(word, fin, &eof, &eos);
     if (eof) break;
+    if (eos) continue;
     char c;
     long long count = 0;
     fscanf(fin, "%lld%c", &count, &c);
-    if (count < 1) count = min_count; // prevent LM from ignoring zero-count words
     for (long long j = 0; j < count; ++j) {
       language_model.increment(word);
     }
@@ -210,11 +214,12 @@ long long read_new_sentence(FILE* fi, const NaiveLanguageModel& language_model,
   long long sentence_length = 0;
   uniform_real_distribution<float> d(0, 1);
   while (1) {
-    long long word = ReadWordIndex(language_model, fi, eof);
+    char eos = 0;
+    long long word = ReadWordIndex(language_model, fi, eof, &eos);
     if (*eof) break;
+    if (eos) break;
     if (word == -1) continue;
     ++*word_count;
-    if (word == 0) break;
     // The subsampling randomly discards frequent words while keeping the ranking same
     if (! language_model.subsample(word)) {
       continue;
