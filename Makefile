@@ -81,7 +81,7 @@ _math.o: _math.cpp _math.h
 $(WORD2VEC_ATHENA_NEG_MAINS): %: %.cpp _math.o
 	$(CXX) $^ -o $@ $(CXXFLAGS)
 
-word2vec-athena-more4-num-pairs: %: %.cpp athena/build/lib/libathena.a
+word2vec-athena-more3-num-pairs word2vec-athena-more4-num-pairs: %: %.cpp athena/build/lib/libathena.a
 	$(CXX) $^ -o $@ $(CXXFLAGS) -fopenmp
 
 $(WORD2VEC_ATHENA_MAINS): %: %.cpp athena/build/lib/libathena.a
