@@ -695,6 +695,8 @@ void *TrainModelThread(void *id) {
           // (t is the subsampling threshold `sample`, p_{word} is the
           // ML estimate of the probability of `word` in a unigram LM
           // (normalized frequency)
+          // TODO: why is this not merely 1 - sqrt(t / p_{word}) as in
+          // the paper?
           real ran = (sqrt(vocab[word].cn / (sample * train_words)) + 1) * (sample * train_words) / vocab[word].cn;
           next_random = next_random * (unsigned long long)25214903917 + 11;
           if (ran < (next_random & 0xFFFF) / (real)65536) continue;
