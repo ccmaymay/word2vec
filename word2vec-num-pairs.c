@@ -541,8 +541,8 @@ void *TrainModelThread(void *id) {
         }
         // Learn weights input -> hidden
         for (c = 0; c < layer1_size; c++) syn0[c + l1] += neu1e[c];
+        ++num_input_output_pairs;
       }
-      ++num_input_output_pairs;
     }
     sentence_position++;
     if (sentence_position >= sentence_length) {
