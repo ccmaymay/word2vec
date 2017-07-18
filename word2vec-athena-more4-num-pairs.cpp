@@ -507,5 +507,6 @@ int main(int argc, char **argv) {
   }
   TrainModel(expTable, language_model);
   free(expTable);
+  printf("\nNumber of input-output word pairs seen: %lld\n", num_input_output_pairs);
   return 0;
 }
