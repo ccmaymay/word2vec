@@ -417,8 +417,7 @@ long long read_new_sentence(FILE* fi, const struct vocab_word* vocab,
     if (sample > 0) {
       real threshold =
         (sqrt(vocab[word].cn / (sample * train_words)) + 1) *
-        (sample * train_words) /
-        vocab[word].cn;
+        (sample * train_words) / vocab[word].cn;
       if (d(get_urng()) > threshold)
         continue;
     }
