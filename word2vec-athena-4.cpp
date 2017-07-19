@@ -273,7 +273,6 @@ void TrainModelThread(real* input_embeddings,
     last_word_count = 0,
     local_iter = iter;
   long long sen[MAX_SENTENCE_LENGTH + 1];
-  real *output_word_gradient = (real *)calloc(embedding_size, sizeof(real));
   real *input_word_gradient = (real *)calloc(embedding_size, sizeof(real));
   FILE *fi = fopen(train_file, "rb");
   while (1) {
@@ -300,8 +299,6 @@ void TrainModelThread(real* input_embeddings,
     }
     long long output_word = sen[output_word_position];
     if (output_word == -1) continue;
-    zero_vector(embedding_size, output_word_gradient);
-    zero_vector(embedding_size, input_word_gradient);
     uniform_int_distribution<long long> dyn_window_offset_d(0, window - 1);
     long long dyn_window_offset = dyn_window_offset_d(get_urng());
 
@@ -347,7 +344,6 @@ void TrainModelThread(real* input_embeddings,
     output_word_position++;
   }
   fclose(fi);
-  free(output_word_gradient);
   free(input_word_gradient);
 }
 

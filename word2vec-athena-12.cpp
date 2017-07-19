@@ -256,7 +256,9 @@ void TrainModelThread(shared_ptr<SGNSModel> model, int neg_samples) {
     }
     long long output_word = sen[output_word_position];
     if (output_word == -1) continue;
-    auto ctx = model->ctx_strategy->size(output_word_position, (sentence_length - 1) - output_word_position);
+    auto ctx = model->ctx_strategy->size(
+      output_word_position,
+      (sentence_length - 1) - output_word_position);
 
     for (long long input_word_position = output_word_position - ctx.first;
         input_word_position <= output_word_position + ctx.second;

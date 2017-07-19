@@ -255,7 +255,6 @@ void TrainModelThread(WordContextFactorization& factorization,
     last_word_count = 0,
     local_iter = iter;
   long long sen[MAX_SENTENCE_LENGTH + 1];
-  real *output_word_gradient = (real *)calloc(factorization.get_embedding_dim(), sizeof(real));
   real *input_word_gradient = (real *)calloc(factorization.get_embedding_dim(), sizeof(real));
   FILE *fi = fopen(train_file, "rb");
   while (1) {
@@ -270,7 +269,6 @@ void TrainModelThread(WordContextFactorization& factorization,
                                           sen, &eof);
       output_word_position = 0;
     }
-    const real alpha = sgd.get_rho(0);
     if (eof || (word_count > language_model.total() / num_threads)) {
       word_count_actual += word_count - last_word_count;
       local_iter--;
@@ -283,10 +281,9 @@ void TrainModelThread(WordContextFactorization& factorization,
     }
     long long output_word = sen[output_word_position];
     if (output_word == -1) continue;
-    zero_vector(factorization.get_embedding_dim(), output_word_gradient);
-    zero_vector(factorization.get_embedding_dim(), input_word_gradient);
     uniform_int_distribution<long long> dyn_window_offset_d(0, window - 1);
     long long dyn_window_offset = dyn_window_offset_d(get_urng());
+    const real alpha = sgd.get_rho(0);
 
     for (long long a = dyn_window_offset; a < window * 2 + 1 - dyn_window_offset; a++) if (a != window) {
       long long input_word_position = output_word_position - window + a;
@@ -329,7 +326,6 @@ void TrainModelThread(WordContextFactorization& factorization,
     sgd.step(0);
   }
   fclose(fi);
-  free(output_word_gradient);
   free(input_word_gradient);
 }
 

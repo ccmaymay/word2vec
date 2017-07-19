@@ -17,7 +17,6 @@
 #include <cstring>
 #include <ctime>
 #include <cmath>
-#include <set>
 
 #include <athena/athena/_math.h>
 #include <athena/athena/_core.h>
@@ -231,12 +230,11 @@ void TrainModelThread(WordContextFactorization& factorization,
                       const DynamicContextStrategy& ctx_strategy) {
   long long
     sentence_length = 0,
-    output_word_position = 0,
+    input_word_position = 0,
     word_count = 0,
     last_word_count = 0,
     local_iter = iter;
   long long sen[MAX_SENTENCE_LENGTH + 1];
-  real *output_word_gradient = (real *)calloc(factorization.get_embedding_dim(), sizeof(real));
   real *input_word_gradient = (real *)calloc(factorization.get_embedding_dim(), sizeof(real));
   FILE *fi = fopen(train_file, "rb");
   while (1) {
@@ -246,10 +244,10 @@ void TrainModelThread(WordContextFactorization& factorization,
       last_word_count = word_count;
     }
     char eof = 0;
-    if (output_word_position >= sentence_length) {
+    if (input_word_position >= sentence_length) {
       sentence_length = read_new_sentence(fi, language_model, &word_count,
                                           sen, &eof);
-      output_word_position = 0;
+      input_word_position = 0;
     }
     if (eof || (word_count > language_model.total() / num_threads)) {
       word_count_actual += word_count - last_word_count;
@@ -261,19 +259,19 @@ void TrainModelThread(WordContextFactorization& factorization,
       fseek(fi, 0, SEEK_SET);
       continue;
     }
-    long long output_word = sen[output_word_position];
-    if (output_word == -1) continue;
-    zero_vector(factorization.get_embedding_dim(), output_word_gradient);
-    zero_vector(factorization.get_embedding_dim(), input_word_gradient);
-    auto ctx = ctx_strategy.size(output_word_position, (sentence_length - 1) - output_word_position);
+    long long input_word = sen[input_word_position];
+    if (input_word == -1) continue;
+    auto ctx = ctx_strategy.size(
+      input_word_position,
+      (sentence_length - 1) - input_word_position);
+    const real alpha = sgd.get_rho(input_word);
 
-    for (long long input_word_position = output_word_position - ctx.first;
-        input_word_position <= output_word_position + ctx.second;
-        ++input_word_position) if (input_word_position != output_word_position) {
-      long long input_word = sen[input_word_position];
-      if (input_word == -1) continue;
+    for (long long output_word_position = input_word_position - ctx.first;
+        output_word_position <= input_word_position + ctx.second;
+        ++output_word_position) if (output_word_position != input_word_position) {
+      long long output_word = sen[output_word_position];
+      if (output_word == -1) continue;
       zero_vector(factorization.get_embedding_dim(), input_word_gradient);
-      set<long long> words_seen;
       // NEGATIVE SAMPLING
       if (negative > 0) for (long long d = 0; d < negative + 1; d++) {
         long long target_word, is_output;
@@ -288,32 +286,26 @@ void TrainModelThread(WordContextFactorization& factorization,
         real f = sdot(factorization.get_embedding_dim(),
                       factorization.get_word_embedding(input_word),
                       factorization.get_context_embedding(target_word));
-        real gradient_scale = is_output - sigmoid(f);
+        real gradient_scale = (is_output - sigmoid(f)) * alpha;
         saxpy(factorization.get_embedding_dim(),
               gradient_scale,
               factorization.get_context_embedding(target_word),
               input_word_gradient);
         saxpy(factorization.get_embedding_dim(),
-              gradient_scale * sgd.get_rho(target_word),
+              gradient_scale,
               factorization.get_word_embedding(input_word),
               factorization.get_context_embedding(target_word));
-        words_seen.insert(target_word);
       }
       // Learn weights input -> hidden
       saxpy(factorization.get_embedding_dim(),
-            sgd.get_rho(input_word),
+            1,
             input_word_gradient,
             factorization.get_word_embedding(input_word));
-      words_seen.insert(input_word);
-
-      for (auto it = words_seen.begin(); it != words_seen.end(); ++it) {
-        sgd.step(*it);
-      }
     }
-    output_word_position++;
+    input_word_position++;
+    sgd.step(input_word);
   }
   fclose(fi);
-  free(output_word_gradient);
   free(input_word_gradient);
 }
 
