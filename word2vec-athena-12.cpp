@@ -226,7 +226,7 @@ long long read_new_sentence(FILE* fi, const LanguageModel& language_model,
 void TrainModelThread(shared_ptr<SGNSModel> model, int neg_samples) {
   long long
     sentence_length = 0,
-    output_word_position = 0,
+    input_word_position = 0,
     word_count = 0,
     last_word_count = 0,
     local_iter = iter;
@@ -239,10 +239,10 @@ void TrainModelThread(shared_ptr<SGNSModel> model, int neg_samples) {
       last_word_count = word_count;
     }
     char eof = 0;
-    if (output_word_position >= sentence_length) {
+    if (input_word_position >= sentence_length) {
       sentence_length = read_new_sentence(fi, *(model->language_model), &word_count,
                                           sen, &eof);
-      output_word_position = 0;
+      input_word_position = 0;
     }
     if (eof || (word_count > model->language_model->total() / num_threads)) {
       word_count_actual += word_count - last_word_count;
@@ -254,21 +254,22 @@ void TrainModelThread(shared_ptr<SGNSModel> model, int neg_samples) {
       fseek(fi, 0, SEEK_SET);
       continue;
     }
-    long long output_word = sen[output_word_position];
-    if (output_word == -1) continue;
+    long long input_word = sen[input_word_position];
+    if (input_word == -1) continue;
     auto ctx = model->ctx_strategy->size(
-      output_word_position,
-      (sentence_length - 1) - output_word_position);
+      input_word_position,
+      (sentence_length - 1) - input_word_position);
 
-    for (long long input_word_position = output_word_position - ctx.first;
-        input_word_position <= output_word_position + ctx.second;
-        ++input_word_position) if (input_word_position != output_word_position) {
-      long long input_word = sen[input_word_position];
-      if (input_word == -1) continue;
+    for (long long output_word_position = input_word_position - ctx.first;
+        output_word_position <= input_word_position + ctx.second;
+        ++output_word_position) if (output_word_position != input_word_position) {
+      long long output_word = sen[output_word_position];
+      if (output_word == -1) continue;
       // NEGATIVE SAMPLING
       model->token_learner->token_train(input_word, output_word, neg_samples);
     }
-    output_word_position++;
+    input_word_position++;
+    model->sgd->step(input_word);
   }
   fclose(fi);
 }
