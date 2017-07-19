@@ -32,6 +32,9 @@ TRAIN_FILE ?= text8
 
 NUM_TRIALS ?= 10
 
+LIBATHENA_SOURCES := $(wildcard athena/athena/_*.cpp)
+LIBATHENA_HEADERS := $(wildcard athena/athena/_*.h)
+
 WORD2VEC_ATHENA_MAINS := \
 	word2vec-athena word2vec-athena-more \
 	word2vec-athena-more-more word2vec-athena-more3 \
@@ -160,16 +163,16 @@ host.txt:
 athena/Makefile:
 	git clone https://github.com/cjmay/athena
 
-athena/build/lib/spacesaving-word2vec-train-raw: athena/Makefile
+athena/build/lib/spacesaving-word2vec-train-raw: athena/Makefile $(LIBATHENA_SOURCES) $(LIBATHENA_HEADERS) athena/athena/spacesaving-word2vec-train-raw.cpp
 	cd athena && make build/lib/spacesaving-word2vec-train-raw
 
-athena/build/lib/word2vec-train-raw: athena/Makefile
+athena/build/lib/word2vec-train-raw: athena/Makefile $(LIBATHENA_SOURCES) $(LIBATHENA_HEADERS) athena/athena/word2vec-train-raw.cpp
 	cd athena && make build/lib/word2vec-train-raw
 
-athena/build/lib/word2vec-vocab-to-naive-lm: athena/Makefile
+athena/build/lib/word2vec-vocab-to-naive-lm: athena/Makefile $(LIBATHENA_SOURCES) $(LIBATHENA_HEADERS) athena/athena/word2vec-vocab-to-naive-lm.cpp
 	cd athena && make build/lib/word2vec-vocab-to-naive-lm
 
-athena/build/lib/libathena.a:
+athena/build/lib/libathena.a: $(LIBATHENA_SOURCES) $(LIBATHENA_HEADERS)
 	cd athena && make build/lib/libathena.a
 
 clean:
