@@ -283,7 +283,7 @@ void TrainModel(shared_ptr<NaiveLanguageModel> language_model, real alpha, long 
     make_shared<ReservoirSamplingStrategy>(
       make_shared<ReservoirSampler<long> >(table_size)),
     language_model,
-    make_shared<SGD>(1, language_model->total() * iter, alpha, 0.0001 * alpha),
+    make_shared<SGD>(language_model->size(), language_model->total() * iter, alpha, 0.0001 * alpha),
     make_shared<DynamicContextStrategy>(window),
     make_shared<SGNSTokenLearner>(),
     shared_ptr<SGNSSentenceLearner>(),
