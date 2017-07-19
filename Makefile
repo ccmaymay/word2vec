@@ -36,13 +36,10 @@ LIBATHENA_SOURCES := $(wildcard athena/athena/_*.cpp)
 LIBATHENA_HEADERS := $(wildcard athena/athena/_*.h)
 
 WORD2VEC_ATHENA_MAINS := \
-	word2vec-athena word2vec-athena-more \
-	word2vec-athena-more-more word2vec-athena-more3 \
-	word2vec-athena-more4 word2vec-athena-more5 \
-	word2vec-athena-more6 word2vec-athena-more7 \
-	word2vec-athena-more8 word2vec-athena-more9 \
-	word2vec-athena-more10 word2vec-athena-more11 \
-	word2vec-athena-more12
+	word2vec-athena-0 word2vec-athena-1 word2vec-athena-2 word2vec-athena-3 \
+	word2vec-athena-4 word2vec-athena-5 word2vec-athena-6 word2vec-athena-7 \
+	word2vec-athena-8 word2vec-athena-9 word2vec-athena-10 word2vec-athena-11 \
+	word2vec-athena-12
 
 WORD2VEC_ATHENA_NEG_MAINS := \
 	word2vec-athena-neg word2vec-reservoir-neg word2vec-alias-neg \
@@ -52,12 +49,12 @@ CUSTOM_WORD2VEC_MAINS := \
 	$(WORD2VEC_ATHENA_MAINS) \
 	$(WORD2VEC_ATHENA_NEG_MAINS) \
 	word2vec-no-funroll word2vec-no-march word2vec-no-o3 \
-	word2vec-blas word2vec-blas-alias-neg word2vec-local-vars-more \
-	word2vec-local-vars-more-more
+	word2vec-blas word2vec-blas-alias-neg word2vec-local-vars-1 \
+	word2vec-local-vars-2
 
 WORD2VEC_MAINS := \
 	word2vec word2vec-static-window \
-	word2vec-unsmoothed-neg word2vec-uniform-neg word2vec-local-vars \
+	word2vec-unsmoothed-neg word2vec-uniform-neg word2vec-local-vars-0 \
 	word2vec-no-subsample word2vec-double word2vec-no-memalign \
 	word2vec-no-pthread word2vec-1-neg word2vec-continuous-lr word2vec-exp \
 	word2vec-int word2vec-longlong word2vec-comments
@@ -85,7 +82,7 @@ _math.o: _math.cpp _math.h
 $(WORD2VEC_ATHENA_NEG_MAINS): %: %.cpp _math.o
 	$(CXX) $^ -o $@ $(CXXFLAGS)
 
-word2vec-athena-more3-num-pairs word2vec-athena-more4-num-pairs: %: %.cpp athena/build/lib/libathena.a
+word2vec-athena-3-num-pairs word2vec-athena-4-num-pairs: %: %.cpp athena/build/lib/libathena.a
 	$(CXX) $^ -o $@ $(CXXFLAGS) -fopenmp
 
 $(WORD2VEC_ATHENA_MAINS): %: %.cpp athena/build/lib/libathena.a
@@ -103,7 +100,7 @@ word2vec-no-march: word2vec.c
 word2vec-no-o3: word2vec.c
 	$(CC) $< -o $@ $(CFLAGS_NO_O3)
 
-word2vec-local-vars-more word2vec-local-vars-more-more: %: %.c
+word2vec-local-vars-1 word2vec-local-vars-2: %: %.c
 	$(CC) $< -o $@ $(CFLAGS) -std=gnu99
 
 word2vec-blas: word2vec-blas.c
