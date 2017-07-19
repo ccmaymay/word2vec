@@ -38,7 +38,8 @@ WORD2VEC_ATHENA_MAINS := \
 	word2vec-athena-more4 word2vec-athena-more5 \
 	word2vec-athena-more6 word2vec-athena-more7 \
 	word2vec-athena-more8 word2vec-athena-more9 \
-	word2vec-athena-more10 word2vec-athena-more11
+	word2vec-athena-more10 word2vec-athena-more11 \
+	word2vec-athena-more12
 
 WORD2VEC_ATHENA_NEG_MAINS := \
 	word2vec-athena-neg word2vec-reservoir-neg word2vec-alias-neg \
