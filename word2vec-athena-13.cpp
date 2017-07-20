@@ -205,7 +205,7 @@ long long read_new_sentence(FILE* fi, const NaiveLanguageModel& language_model,
   return sentence_length;
 }
 
-void TrainModelThread(SGNSTokenLearner* token_learner, ContextStrategy* ctx_strategy, int neg_samples) {
+void TrainModelThread(SGNSTokenLearner<ReservoirSamplingStrategy<NaiveLanguageModel>,NaiveLanguageModel>& token_learner, ContextStrategy& ctx_strategy, int neg_samples) {
   long long
     sentence_length = 0,
     input_word_position = 0,
@@ -217,16 +217,16 @@ void TrainModelThread(SGNSTokenLearner* token_learner, ContextStrategy* ctx_stra
   while (1) {
     if (word_count - last_word_count > 10000) {
       word_count_actual += word_count - last_word_count;
-      update_progress(*(token_learner->language_model), *(token_learner->sgd));
+      update_progress(token_learner.language_model, token_learner.sgd);
       last_word_count = word_count;
     }
     char eof = 0;
     if (input_word_position >= sentence_length) {
-      sentence_length = read_new_sentence(fi, *(token_learner->language_model), &word_count,
+      sentence_length = read_new_sentence(fi, token_learner.language_model, &word_count,
                                           sen, &eof);
       input_word_position = 0;
     }
-    if (eof || (word_count > token_learner->language_model->total() / num_threads)) {
+    if (eof || (word_count > token_learner.language_model.total() / num_threads)) {
       word_count_actual += word_count - last_word_count;
       local_iter--;
       if (local_iter == 0) break;
@@ -238,7 +238,7 @@ void TrainModelThread(SGNSTokenLearner* token_learner, ContextStrategy* ctx_stra
     }
     long long input_word = sen[input_word_position];
     if (input_word == -1) continue;
-    auto ctx = ctx_strategy->size(
+    auto ctx = ctx_strategy.size(
       input_word_position,
       (sentence_length - 1) - input_word_position);
 
@@ -248,56 +248,56 @@ void TrainModelThread(SGNSTokenLearner* token_learner, ContextStrategy* ctx_stra
       long long output_word = sen[output_word_position];
       if (output_word == -1) continue;
       // NEGATIVE SAMPLING
-      token_learner->token_train(input_word, output_word, neg_samples);
+      token_learner.token_train(input_word, output_word, neg_samples);
     }
     input_word_position++;
-    token_learner->sgd->step(input_word);
+    token_learner.sgd.step(input_word);
   }
   fclose(fi);
 }
 
-void TrainModel(NaiveLanguageModel* language_model, real alpha, long long embedding_size, int window, int neg_samples) {
+void TrainModel(NaiveLanguageModel& language_model, real alpha, long long embedding_size, int window, int neg_samples) {
   printf("Starting training using file %s\n", train_file);
-  if (read_vocab_file[0] != 0) ReadVocab(*language_model); else LearnVocabFromTrainFile(*language_model);
-  if (save_vocab_file[0] != 0) SaveVocab(*language_model);
+  if (read_vocab_file[0] != 0) ReadVocab(language_model); else LearnVocabFromTrainFile(language_model);
+  if (save_vocab_file[0] != 0) SaveVocab(language_model);
   if (output_file[0] == 0) return;
 
-  auto factorization = new WordContextFactorization(language_model->size(), embedding_size);
-  auto token_learner(new SGNSTokenLearner(
-    factorization,
-    new ReservoirSamplingStrategy(
-      new ReservoirSampler<long>(table_size)),
-    language_model,
-    new SGD(language_model->size(), language_model->total() * iter, alpha, 0.0001 * alpha)));
-  auto ctx_strategy(new DynamicContextStrategy(window));
+  size_t lm_size(language_model.size());
+  size_t lm_total(language_model.total());
+  SGNSTokenLearner<ReservoirSamplingStrategy<NaiveLanguageModel>,NaiveLanguageModel> token_learner(
+    WordContextFactorization(lm_size, embedding_size),
+    ReservoirSamplingStrategy<NaiveLanguageModel>(ReservoirSampler<long>(table_size)),
+    move(language_model),
+    SGD(lm_size, lm_total * iter, alpha, 0.0001 * alpha));
+  DynamicContextStrategy ctx_strategy(window);
   CountNormalizer normalizer(0.75, 0);
-  token_learner->neg_sampling_strategy->reset(*language_model, normalizer);
+  token_learner.neg_sampling_strategy.reset(token_learner.language_model, normalizer);
 
   start = clock();
   TrainModelThread(token_learner, ctx_strategy, neg_samples);
   FILE *fo = fopen(output_file, "wb");
   if (classes == 0) {
     // Save the word vectors
-    fprintf(fo, "%zu %lld\n", language_model->size(), embedding_size);
-    for (long a = 0; a < language_model->size(); a++) {
-      fprintf(fo, "%s ", language_model->reverse_lookup(a).c_str());
-      if (binary) for (long b = 0; b < embedding_size; b++) fwrite(factorization->get_word_embedding(a) + b, sizeof(real), 1, fo);
-      else for (long b = 0; b < embedding_size; b++) fprintf(fo, "%lf ", factorization->get_word_embedding(a)[b]);
+    fprintf(fo, "%zu %lld\n", token_learner.language_model.size(), embedding_size);
+    for (long a = 0; a < token_learner.language_model.size(); a++) {
+      fprintf(fo, "%s ", token_learner.language_model.reverse_lookup(a).c_str());
+      if (binary) for (long b = 0; b < embedding_size; b++) fwrite(token_learner.factorization.get_word_embedding(a) + b, sizeof(real), 1, fo);
+      else for (long b = 0; b < embedding_size; b++) fprintf(fo, "%lf ", token_learner.factorization.get_word_embedding(a)[b]);
       fprintf(fo, "\n");
     }
   } else {
     // Run K-means on the word vectors
     int clcn = classes, iter = 10, closeid;
     int *centcn = (int *)malloc(classes * sizeof(int));
-    int *cl = (int *)calloc(language_model->size(), sizeof(int));
+    int *cl = (int *)calloc(token_learner.language_model.size(), sizeof(int));
     real closev, x;
     real *cent = (real *)calloc(classes * embedding_size, sizeof(real));
-    for (long a = 0; a < language_model->size(); a++) cl[a] = a % clcn;
+    for (long a = 0; a < token_learner.language_model.size(); a++) cl[a] = a % clcn;
     for (long a = 0; a < iter; a++) {
       for (long b = 0; b < clcn * embedding_size; b++) cent[b] = 0;
       for (long b = 0; b < clcn; b++) centcn[b] = 1;
-      for (long c = 0; c < language_model->size(); c++) {
-        for (long d = 0; d < embedding_size; d++) cent[embedding_size * cl[c] + d] += factorization->get_word_embedding(c)[d];
+      for (long c = 0; c < token_learner.language_model.size(); c++) {
+        for (long d = 0; d < embedding_size; d++) cent[embedding_size * cl[c] + d] += token_learner.factorization.get_word_embedding(c)[d];
         centcn[cl[c]]++;
       }
       for (long b = 0; b < clcn; b++) {
@@ -309,12 +309,12 @@ void TrainModel(NaiveLanguageModel* language_model, real alpha, long long embedd
         closev = sqrt(closev);
         for (long c = 0; c < embedding_size; c++) cent[embedding_size * b + c] /= closev;
       }
-      for (long c = 0; c < language_model->size(); c++) {
+      for (long c = 0; c < token_learner.language_model.size(); c++) {
         closev = -10;
         closeid = 0;
         for (long d = 0; d < clcn; d++) {
           x = 0;
-          for (long b = 0; b < embedding_size; b++) x += cent[embedding_size * d + b] * factorization->get_word_embedding(c)[b];
+          for (long b = 0; b < embedding_size; b++) x += cent[embedding_size * d + b] * token_learner.factorization.get_word_embedding(c)[b];
           if (x > closev) {
             closev = x;
             closeid = d;
@@ -324,7 +324,7 @@ void TrainModel(NaiveLanguageModel* language_model, real alpha, long long embedd
       }
     }
     // Save the K-means classes
-    for (long a = 0; a < language_model->size(); a++) fprintf(fo, "%s %d\n", language_model->reverse_lookup(a).c_str(), cl[a]);
+    for (long a = 0; a < token_learner.language_model.size(); a++) fprintf(fo, "%s %d\n", token_learner.language_model.reverse_lookup(a).c_str(), cl[a]);
     free(centcn);
     free(cent);
     free(cl);
@@ -411,7 +411,7 @@ int main(int argc, char **argv) {
     printf("Must have num_threads = 1\n");
     exit(1);
   }
-  auto language_model = new NaiveLanguageModel(sample);
+  NaiveLanguageModel language_model(sample);
   TrainModel(language_model, alpha, embedding_size, window, neg_samples);
   return 0;
 }
