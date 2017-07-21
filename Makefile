@@ -141,7 +141,7 @@ query.txt: $(SEPARATE_WORD2VEC_QUERY_OUTPUTS)
 	head $^ > $@
 
 runtime-athena-word2vec.tab: athena/build/lib/word2vec-train-raw $(TRAIN_FILE) vocab.athena
-	./time.bash $(NUM_TRIALS) $@ ./$< -e 100 -n 5 -c 5 -t 1e6 -k 0.025 -l vocab.athena $(TRAIN_FILE) /dev/null
+	./time.bash $(NUM_TRIALS) $@ ./$< -e 100 -n 5 -c 5 -k 0.025 -l vocab.athena $(TRAIN_FILE) /dev/null
 
 runtime-athena-spacesaving-word2vec.tab: athena/build/lib/spacesaving-word2vec-train-raw $(TRAIN_FILE)
 	./time.bash $(NUM_TRIALS) $@ ./$< -v 1000000 -e 100 -n 5 -c 5 -t 1e6 -k 0.025 $(TRAIN_FILE) /dev/null
