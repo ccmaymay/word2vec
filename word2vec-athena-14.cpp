@@ -17,7 +17,6 @@
 #include <cstring>
 #include <ctime>
 #include <cmath>
-#include <vector>
 
 #include <athena/src/_math.h>
 #include <athena/src/_core.h>
@@ -33,7 +32,6 @@ const int vocab_hash_size = 30000000;  // Maximum 30 * 0.7 = 21M words in the vo
 
 typedef float real;                    // Precision of float numbers
 typedef SGNSTokenLearner<NaiveLanguageModel, DiscreteSamplingStrategy<NaiveLanguageModel> > SGNSTokenLearnerType;
-typedef SGNSSentenceLearner<SGNSTokenLearnerType, DynamicContextStrategy> SGNSSentenceLearnerType;
 
 char train_file[MAX_STRING], output_file[MAX_STRING];
 char save_vocab_file[MAX_STRING], read_vocab_file[MAX_STRING];
@@ -208,9 +206,10 @@ long long read_new_sentence(FILE* fi, const NaiveLanguageModel& language_model,
   return sentence_length;
 }
 
-void TrainModelThread(SGNSSentenceLearnerType& sentence_learner, NaiveLanguageModel& language_model, SGD& sgd) {
+void TrainModelThread(SGNSTokenLearnerType& token_learner, NaiveLanguageModel& language_model, DynamicContextStrategy& ctx_strategy, SGD& sgd, int neg_samples) {
   long long
     sentence_length = 0,
+    input_word_position = 0,
     word_count = 0,
     last_word_count = 0,
     local_iter = iter;
@@ -223,8 +222,11 @@ void TrainModelThread(SGNSSentenceLearnerType& sentence_learner, NaiveLanguageMo
       last_word_count = word_count;
     }
     char eof = 0;
-    sentence_length = read_new_sentence(fi, language_model, &word_count,
-                                        sen, &eof);
+    if (input_word_position >= sentence_length) {
+      sentence_length = read_new_sentence(fi, language_model, &word_count,
+                                          sen, &eof);
+      input_word_position = 0;
+    }
     if (eof || (word_count > language_model.total() / num_threads)) {
       word_count_actual += word_count - last_word_count;
       local_iter--;
@@ -235,18 +237,22 @@ void TrainModelThread(SGNSSentenceLearnerType& sentence_learner, NaiveLanguageMo
       fseek(fi, 0, SEEK_SET);
       continue;
     }
-    vector<long> sentence_vec;
-    sentence_vec.reserve(sentence_length);
-    for (size_t word_position = 0; word_position < sentence_length; ++word_position) {
-      long long word = sen[word_position];
-      if (word == -1) continue;
-      sentence_vec.push_back(word);
+    long long input_word = sen[input_word_position];
+    if (input_word == -1) continue;
+    auto ctx = ctx_strategy.size(
+      input_word_position,
+      (sentence_length - 1) - input_word_position);
+
+    for (long long output_word_position = input_word_position - ctx.first;
+        output_word_position <= input_word_position + ctx.second;
+        ++output_word_position) if (output_word_position != input_word_position) {
+      long long output_word = sen[output_word_position];
+      if (output_word == -1) continue;
+      // NEGATIVE SAMPLING
+      token_learner.token_train(input_word, output_word, neg_samples);
     }
-    sentence_learner.sentence_train(sentence_vec);
-    for (size_t word_position = 0; word_position < sentence_length; ++word_position) {
-      long long word = sen[word_position];
-      sgd.step(word);
-    }
+    input_word_position++;
+    sgd.step(input_word);
   }
   fclose(fi);
 }
@@ -261,23 +267,19 @@ void TrainModel(NaiveLanguageModel& _language_model, real alpha, long long embed
   size_t lm_total(_language_model.total());
   auto lm_counts(_language_model.counts());
   ExponentCountNormalizer normalizer(0.75);
-  SGNSSentenceLearnerType sentence_learner(
-    SGNSTokenLearnerType(
-      WordContextFactorization(lm_size, embedding_size),
-      DiscreteSamplingStrategy<NaiveLanguageModel>(Discretization(normalizer.normalize(lm_counts), table_size)),
-      move(_language_model),
-      SGD(lm_size, lm_total * iter, alpha, 0.0001 * alpha)
-    ),
-    DynamicContextStrategy(window),
-    neg_samples
+  SGNSTokenLearnerType token_learner(
+    WordContextFactorization(lm_size, embedding_size),
+    DiscreteSamplingStrategy<NaiveLanguageModel>(Discretization(normalizer.normalize(lm_counts), table_size)),
+    move(_language_model),
+    SGD(lm_size, lm_total * iter, alpha, 0.0001 * alpha)
   );
-  SGNSTokenLearnerType& token_learner(sentence_learner.token_learner);
+  DynamicContextStrategy ctx_strategy(window);
   WordContextFactorization& factorization(token_learner.factorization);
   NaiveLanguageModel& language_model(token_learner.language_model);
   SGD& sgd(token_learner.sgd);
 
   start = clock();
-  TrainModelThread(sentence_learner, language_model, sgd);
+  TrainModelThread(token_learner, language_model, ctx_strategy, sgd, neg_samples);
   FILE *fo = fopen(output_file, "wb");
   if (classes == 0) {
     // Save the word vectors
