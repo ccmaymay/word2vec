@@ -18,7 +18,7 @@
 #include <ctime>
 #include <cmath>
 
-#include <athena/athena/_math.h>
+#include <athena/src/_math.h>
 
 #define MAX_STRING 100
 #define EXP_TABLE_SIZE 1000
@@ -69,7 +69,7 @@ real fast_exp(const real* expTable, real f) {
   else return expTable[(int)((f + MAX_EXP) * (EXP_TABLE_SIZE / MAX_EXP / 2))];
 }
 
-long long draw_negative_sample(const ReservoirSampler<long>& table) {
+long long draw_negative_sample(const Discretization& table) {
   long long neg_sample = table.sample();
   if (neg_sample == 0) {
     uniform_int_distribution<unsigned long long> d(1, vocab_size - 1);
@@ -83,16 +83,15 @@ void zero_vector(long long n, real* v) {
   memset(v, 0, n * sizeof(real));
 }
 
-void InitUnigramTable(struct vocab_word* vocab, ReservoirSampler<long>& table) {
+shared_ptr<Discretization> InitUnigramTable(struct vocab_word* vocab) {
   double train_words_pow = 0;
   double power = 0.75;
+  vector<float> probabilities(vocab_size);
   for (int a = 0; a < vocab_size; a++) train_words_pow += pow(vocab[a].cn, power);
   for (int a = 0; a < vocab_size; a++) {
-    double probability = pow(vocab[a].cn, power) / train_words_pow;
-    for (int i = 0; i <= probability * table_size; ++i) {
-      table.insert(a);
-    }
+    probabilities[a] = pow(vocab[a].cn, power) / train_words_pow;
   }
+  return make_shared<Discretization>(probabilities, table_size);
 }
 
 // Reads a single word from a file, assuming space + tab + EOL to be word boundaries
@@ -430,7 +429,7 @@ long long read_new_sentence(FILE* fi, const struct vocab_word* vocab,
 
 void TrainModelThread(real* input_embeddings,
                       real* output_embeddings,
-                      const ReservoirSampler<long>& table,
+                      const Discretization& table,
                       real* expTable,
                       struct vocab_word** vocab,
                       int* vocab_hash) {
@@ -517,18 +516,17 @@ void TrainModelThread(real* input_embeddings,
 
 void TrainModel(real* expTable, struct vocab_word** vocab, int* vocab_hash) {
   real *input_embeddings, *output_embeddings;
-  ReservoirSampler<long> table(table_size);
   printf("Starting training using file %s\n", train_file);
   starting_alpha = alpha;
   if (read_vocab_file[0] != 0) ReadVocab(vocab, vocab_hash); else LearnVocabFromTrainFile(vocab, vocab_hash);
   if (save_vocab_file[0] != 0) SaveVocab(*vocab);
   if (output_file[0] == 0) return;
   InitNet(&input_embeddings, &output_embeddings, *vocab);
-  InitUnigramTable(*vocab, table);
+  auto table = InitUnigramTable(*vocab);
   start = clock();
   TrainModelThread(input_embeddings,
                    output_embeddings,
-                   table,
+                   *table,
                    expTable,
                    vocab,
                    vocab_hash);

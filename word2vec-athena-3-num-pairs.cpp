@@ -18,7 +18,7 @@
 #include <ctime>
 #include <cmath>
 
-#include <athena/athena/_math.h>
+#include <athena/src/_math.h>
 
 #define MAX_STRING 100
 #define EXP_TABLE_SIZE 1000

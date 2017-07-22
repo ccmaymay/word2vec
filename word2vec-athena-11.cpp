@@ -18,8 +18,8 @@
 #include <ctime>
 #include <cmath>
 
-#include <athena/athena/_math.h>
-#include <athena/athena/_core.h>
+#include <athena/src/_math.h>
+#include <athena/src/_core.h>
 
 #define MAX_STRING 100
 #define MAX_SENTENCE_LENGTH 1000
@@ -224,7 +224,7 @@ long long read_new_sentence(FILE* fi, const NaiveLanguageModel& language_model,
 }
 
 void TrainModelThread(WordContextFactorization& factorization,
-                      ReservoirSamplingStrategy& neg_sampling_strategy,
+                      DiscreteSamplingStrategy<NaiveLanguageModel>& neg_sampling_strategy,
                       const NaiveLanguageModel& language_model,
                       SGD& sgd,
                       const DynamicContextStrategy& ctx_strategy) {
@@ -309,47 +309,51 @@ void TrainModelThread(WordContextFactorization& factorization,
   free(input_word_gradient);
 }
 
-void TrainModel(NaiveLanguageModel& language_model, real alpha, long long embedding_size, int window) {
+void TrainModel(shared_ptr<NaiveLanguageModel> language_model, real alpha, long long embedding_size, int window) {
   printf("Starting training using file %s\n", train_file);
-  if (read_vocab_file[0] != 0) ReadVocab(language_model); else LearnVocabFromTrainFile(language_model);
-  if (save_vocab_file[0] != 0) SaveVocab(language_model);
+  if (read_vocab_file[0] != 0) ReadVocab(*language_model); else LearnVocabFromTrainFile(*language_model);
+  if (save_vocab_file[0] != 0) SaveVocab(*language_model);
   if (output_file[0] == 0) return;
-  auto neg_sampler = make_shared<ReservoirSampler<long> >(table_size);
-  ReservoirSamplingStrategy neg_sampling_strategy(neg_sampler);
-  CountNormalizer normalizer(0.75, 0);
-  neg_sampling_strategy.reset(language_model, normalizer);
-  WordContextFactorization factorization(language_model.size(), embedding_size);
-  SGD sgd(language_model.size(), language_model.total() * iter, alpha, 0.0001 * alpha);
+
+  size_t lm_size(language_model->size());
+  size_t lm_total(language_model->total());
+  ExponentCountNormalizer normalizer(0.75);
+  auto sgd(make_shared<SGD>(lm_size, lm_total * iter, alpha, 0.0001 * alpha));
+  auto factorization(make_shared<WordContextFactorization>(lm_size, embedding_size));
+  auto neg_sampling_strategy(make_shared<DiscreteSamplingStrategy<NaiveLanguageModel> >(
+      make_shared<Discretization>(
+        normalizer.normalize(language_model->counts()),
+        table_size)));
   DynamicContextStrategy ctx_strategy(window);
   start = clock();
-  TrainModelThread(factorization,
-                   neg_sampling_strategy,
-                   language_model,
-                   sgd,
+  TrainModelThread(*factorization,
+                   *neg_sampling_strategy,
+                   *language_model,
+                   *sgd,
                    ctx_strategy);
   FILE *fo = fopen(output_file, "wb");
   if (classes == 0) {
     // Save the word vectors
-    fprintf(fo, "%zu %lld\n", language_model.size(), embedding_size);
-    for (long a = 0; a < language_model.size(); a++) {
-      fprintf(fo, "%s ", language_model.reverse_lookup(a).c_str());
-      if (binary) for (long b = 0; b < embedding_size; b++) fwrite(factorization.get_word_embedding(a) + b, sizeof(real), 1, fo);
-      else for (long b = 0; b < embedding_size; b++) fprintf(fo, "%lf ", factorization.get_word_embedding(a)[b]);
+    fprintf(fo, "%zu %lld\n", lm_size, embedding_size);
+    for (long a = 0; a < lm_size; a++) {
+      fprintf(fo, "%s ", language_model->reverse_lookup(a).c_str());
+      if (binary) for (long b = 0; b < embedding_size; b++) fwrite(factorization->get_word_embedding(a) + b, sizeof(real), 1, fo);
+      else for (long b = 0; b < embedding_size; b++) fprintf(fo, "%lf ", factorization->get_word_embedding(a)[b]);
       fprintf(fo, "\n");
     }
   } else {
     // Run K-means on the word vectors
     int clcn = classes, iter = 10, closeid;
     int *centcn = (int *)malloc(classes * sizeof(int));
-    int *cl = (int *)calloc(language_model.size(), sizeof(int));
+    int *cl = (int *)calloc(lm_size, sizeof(int));
     real closev, x;
     real *cent = (real *)calloc(classes * embedding_size, sizeof(real));
-    for (long a = 0; a < language_model.size(); a++) cl[a] = a % clcn;
+    for (long a = 0; a < lm_size; a++) cl[a] = a % clcn;
     for (long a = 0; a < iter; a++) {
       for (long b = 0; b < clcn * embedding_size; b++) cent[b] = 0;
       for (long b = 0; b < clcn; b++) centcn[b] = 1;
-      for (long c = 0; c < language_model.size(); c++) {
-        for (long d = 0; d < embedding_size; d++) cent[embedding_size * cl[c] + d] += factorization.get_word_embedding(c)[d];
+      for (long c = 0; c < lm_size; c++) {
+        for (long d = 0; d < embedding_size; d++) cent[embedding_size * cl[c] + d] += factorization->get_word_embedding(c)[d];
         centcn[cl[c]]++;
       }
       for (long b = 0; b < clcn; b++) {
@@ -361,12 +365,12 @@ void TrainModel(NaiveLanguageModel& language_model, real alpha, long long embedd
         closev = sqrt(closev);
         for (long c = 0; c < embedding_size; c++) cent[embedding_size * b + c] /= closev;
       }
-      for (long c = 0; c < language_model.size(); c++) {
+      for (long c = 0; c < lm_size; c++) {
         closev = -10;
         closeid = 0;
         for (long d = 0; d < clcn; d++) {
           x = 0;
-          for (long b = 0; b < embedding_size; b++) x += cent[embedding_size * d + b] * factorization.get_word_embedding(c)[b];
+          for (long b = 0; b < embedding_size; b++) x += cent[embedding_size * d + b] * factorization->get_word_embedding(c)[b];
           if (x > closev) {
             closev = x;
             closeid = d;
@@ -376,7 +380,7 @@ void TrainModel(NaiveLanguageModel& language_model, real alpha, long long embedd
       }
     }
     // Save the K-means classes
-    for (long a = 0; a < language_model.size(); a++) fprintf(fo, "%s %d\n", language_model.reverse_lookup(a).c_str(), cl[a]);
+    for (long a = 0; a < lm_size; a++) fprintf(fo, "%s %d\n", language_model->reverse_lookup(a).c_str(), cl[a]);
     free(centcn);
     free(cent);
     free(cl);
@@ -462,7 +466,7 @@ int main(int argc, char **argv) {
     printf("Must have num_threads = 1\n");
     exit(1);
   }
-  NaiveLanguageModel language_model(sample);
+  auto language_model(make_shared<NaiveLanguageModel>(sample));
   TrainModel(language_model, alpha, embedding_size, window);
   return 0;
 }

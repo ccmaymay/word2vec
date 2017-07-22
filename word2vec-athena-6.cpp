@@ -18,8 +18,8 @@
 #include <ctime>
 #include <cmath>
 
-#include <athena/athena/_math.h>
-#include <athena/athena/_core.h>
+#include <athena/src/_math.h>
+#include <athena/src/_core.h>
 
 #define MAX_STRING 100
 #define EXP_TABLE_SIZE 1000
@@ -66,16 +66,15 @@ void zero_vector(long long n, real* v) {
   memset(v, 0, n * sizeof(real));
 }
 
-void InitUnigramTable(const NaiveLanguageModel& language_model, ReservoirSampler<long>& table) {
+shared_ptr<Discretization> InitUnigramTable(const NaiveLanguageModel& language_model) {
   double train_words_pow = 0;
   double power = 0.75;
+  vector<float> probabilities(language_model.size());
   for (int a = 0; a < language_model.size(); a++) train_words_pow += pow(language_model.count(a), power);
   for (int a = 0; a < language_model.size(); a++) {
-    double probability = pow(language_model.count(a), power) / train_words_pow;
-    for (int i = 0; i <= probability * table_size; ++i) {
-      table.insert(a);
-    }
+    probabilities[a] = pow(language_model.count(a), power) / train_words_pow;
   }
+  return make_shared<Discretization>(probabilities, table_size);
 }
 
 // Reads a single word from a file, assuming space + tab + EOL to be word boundaries
@@ -244,7 +243,7 @@ long long read_new_sentence(FILE* fi, const NaiveLanguageModel& language_model,
 }
 
 void TrainModelThread(WordContextFactorization& factorization,
-                      const ReservoirSampler<long>& table,
+                      const Discretization& table,
                       real* expTable,
                       const NaiveLanguageModel& language_model,
                       SGD& sgd) {
@@ -329,44 +328,46 @@ void TrainModelThread(WordContextFactorization& factorization,
   free(input_word_gradient);
 }
 
-void TrainModel(real* expTable, NaiveLanguageModel& language_model, real alpha, long long embedding_size) {
-  ReservoirSampler<long> table(table_size);
+void TrainModel(real* expTable, shared_ptr<NaiveLanguageModel> language_model, real alpha, long long embedding_size) {
   printf("Starting training using file %s\n", train_file);
-  if (read_vocab_file[0] != 0) ReadVocab(language_model); else LearnVocabFromTrainFile(language_model);
-  if (save_vocab_file[0] != 0) SaveVocab(language_model);
+  if (read_vocab_file[0] != 0) ReadVocab(*language_model); else LearnVocabFromTrainFile(*language_model);
+  if (save_vocab_file[0] != 0) SaveVocab(*language_model);
   if (output_file[0] == 0) return;
-  WordContextFactorization factorization(language_model.size(), embedding_size);
-  SGD sgd(1, language_model.total() * iter, alpha, 0.0001 * alpha);
-  InitUnigramTable(language_model, table);
+
+  size_t lm_size(language_model->size());
+  size_t lm_total(language_model->total());
+  auto sgd(make_shared<SGD>(lm_size, lm_total * iter, alpha, 0.0001 * alpha));
+  auto factorization(make_shared<WordContextFactorization>(lm_size, embedding_size));
+  auto table = InitUnigramTable(*language_model);
   start = clock();
-  TrainModelThread(factorization,
-                   table,
+  TrainModelThread(*factorization,
+                   *table,
                    expTable,
-                   language_model,
-                   sgd);
+                   *language_model,
+                   *sgd);
   FILE *fo = fopen(output_file, "wb");
   if (classes == 0) {
     // Save the word vectors
-    fprintf(fo, "%zu %lld\n", language_model.size(), embedding_size);
-    for (long a = 0; a < language_model.size(); a++) {
-      fprintf(fo, "%s ", language_model.reverse_lookup(a).c_str());
-      if (binary) for (long b = 0; b < embedding_size; b++) fwrite(factorization.get_word_embedding(a) + b, sizeof(real), 1, fo);
-      else for (long b = 0; b < embedding_size; b++) fprintf(fo, "%lf ", factorization.get_word_embedding(a)[b]);
+    fprintf(fo, "%zu %lld\n", lm_size, embedding_size);
+    for (long a = 0; a < lm_size; a++) {
+      fprintf(fo, "%s ", language_model->reverse_lookup(a).c_str());
+      if (binary) for (long b = 0; b < embedding_size; b++) fwrite(factorization->get_word_embedding(a) + b, sizeof(real), 1, fo);
+      else for (long b = 0; b < embedding_size; b++) fprintf(fo, "%lf ", factorization->get_word_embedding(a)[b]);
       fprintf(fo, "\n");
     }
   } else {
     // Run K-means on the word vectors
     int clcn = classes, iter = 10, closeid;
     int *centcn = (int *)malloc(classes * sizeof(int));
-    int *cl = (int *)calloc(language_model.size(), sizeof(int));
+    int *cl = (int *)calloc(lm_size, sizeof(int));
     real closev, x;
     real *cent = (real *)calloc(classes * embedding_size, sizeof(real));
-    for (long a = 0; a < language_model.size(); a++) cl[a] = a % clcn;
+    for (long a = 0; a < lm_size; a++) cl[a] = a % clcn;
     for (long a = 0; a < iter; a++) {
       for (long b = 0; b < clcn * embedding_size; b++) cent[b] = 0;
       for (long b = 0; b < clcn; b++) centcn[b] = 1;
-      for (long c = 0; c < language_model.size(); c++) {
-        for (long d = 0; d < embedding_size; d++) cent[embedding_size * cl[c] + d] += factorization.get_word_embedding(c)[d];
+      for (long c = 0; c < lm_size; c++) {
+        for (long d = 0; d < embedding_size; d++) cent[embedding_size * cl[c] + d] += factorization->get_word_embedding(c)[d];
         centcn[cl[c]]++;
       }
       for (long b = 0; b < clcn; b++) {
@@ -378,12 +379,12 @@ void TrainModel(real* expTable, NaiveLanguageModel& language_model, real alpha, 
         closev = sqrt(closev);
         for (long c = 0; c < embedding_size; c++) cent[embedding_size * b + c] /= closev;
       }
-      for (long c = 0; c < language_model.size(); c++) {
+      for (long c = 0; c < lm_size; c++) {
         closev = -10;
         closeid = 0;
         for (long d = 0; d < clcn; d++) {
           x = 0;
-          for (long b = 0; b < embedding_size; b++) x += cent[embedding_size * d + b] * factorization.get_word_embedding(c)[b];
+          for (long b = 0; b < embedding_size; b++) x += cent[embedding_size * d + b] * factorization->get_word_embedding(c)[b];
           if (x > closev) {
             closev = x;
             closeid = d;
@@ -393,7 +394,7 @@ void TrainModel(real* expTable, NaiveLanguageModel& language_model, real alpha, 
       }
     }
     // Save the K-means classes
-    for (long a = 0; a < language_model.size(); a++) fprintf(fo, "%s %d\n", language_model.reverse_lookup(a).c_str(), cl[a]);
+    for (long a = 0; a < lm_size; a++) fprintf(fo, "%s %d\n", language_model->reverse_lookup(a).c_str(), cl[a]);
     free(centcn);
     free(cent);
     free(cl);
@@ -478,7 +479,7 @@ int main(int argc, char **argv) {
     printf("Must have num_threads = 1\n");
     exit(1);
   }
-  NaiveLanguageModel language_model(sample);
+  auto language_model(make_shared<NaiveLanguageModel>(sample));
   real* expTable = (real *)malloc((EXP_TABLE_SIZE + 1) * sizeof(real));
   for (int j = 0; j < EXP_TABLE_SIZE; j++) {
     expTable[j] = exp((j / (real)EXP_TABLE_SIZE * 2 - 1) * MAX_EXP); // Precompute the exp() table

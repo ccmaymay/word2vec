@@ -19,9 +19,9 @@
 #include <cmath>
 #include <vector>
 
-#include <athena/athena/_math.h>
-#include <athena/athena/_core.h>
-#include <athena/athena/_sgns.h>
+#include <athena/src/_math.h>
+#include <athena/src/_core.h>
+#include <athena/src/_sgns.h>
 
 #define MAX_STRING 100
 #define MAX_SENTENCE_LENGTH 1000
