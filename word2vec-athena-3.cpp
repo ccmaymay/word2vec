@@ -83,7 +83,7 @@ void zero_vector(long long n, real* v) {
   memset(v, 0, n * sizeof(real));
 }
 
-shared_ptr<Discretization> InitUnigramTable(struct vocab_word* vocab) {
+Discretization InitUnigramTable(struct vocab_word* vocab) {
   double train_words_pow = 0;
   double power = 0.75;
   vector<float> probabilities(vocab_size);
@@ -91,7 +91,7 @@ shared_ptr<Discretization> InitUnigramTable(struct vocab_word* vocab) {
   for (int a = 0; a < vocab_size; a++) {
     probabilities[a] = pow(vocab[a].cn, power) / train_words_pow;
   }
-  return make_shared<Discretization>(probabilities, table_size);
+  return Discretization(probabilities, table_size);
 }
 
 // Reads a single word from a file, assuming space + tab + EOL to be word boundaries
@@ -522,11 +522,11 @@ void TrainModel(real* expTable, struct vocab_word** vocab, int* vocab_hash) {
   if (save_vocab_file[0] != 0) SaveVocab(*vocab);
   if (output_file[0] == 0) return;
   InitNet(&input_embeddings, &output_embeddings, *vocab);
-  auto table = InitUnigramTable(*vocab);
+  auto table(InitUnigramTable(*vocab));
   start = clock();
   TrainModelThread(input_embeddings,
                    output_embeddings,
-                   *table,
+                   table,
                    expTable,
                    vocab,
                    vocab_hash);
