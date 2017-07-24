@@ -50,21 +50,8 @@ const int table_size = 1;
 int *table;
 
 void InitUnigramTable() {
-  int a, i;
-  double train_words_pow = 0;
-  double d1, power = 0.75;
-  table = (int *)malloc(table_size * sizeof(int));
-  for (a = 0; a < vocab_size; a++) train_words_pow += pow(vocab[a].cn, power);
-  i = 0;
-  d1 = pow(vocab[i].cn, power) / train_words_pow;
-  for (a = 0; a < table_size; a++) {
-    table[a] = i;
-    if (a / (double)table_size > d1) {
-      i++;
-      d1 += pow(vocab[i].cn, power) / train_words_pow;
-    }
-    if (i >= vocab_size) i = vocab_size - 1;
-  }
+  table = (int *)malloc(sizeof(int));
+  table[0] = 1; // hard-code to most frequent word, ignoring </s>
 }
 
 // Reads a single word from a file, assuming space + tab + EOL to be word boundaries
