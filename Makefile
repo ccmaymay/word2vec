@@ -83,10 +83,10 @@ _math.o: _math.cpp _math.h
 $(WORD2VEC_ATHENA_NEG_MAINS): %: %.cpp _math.o
 	$(CXX) $^ -o $@ $(CXXFLAGS)
 
-word2vec-athena-3-num-pairs word2vec-athena-4-num-pairs: %: %.cpp athena/build/lib/libathena.a
+word2vec-athena-3-num-pairs word2vec-athena-4-num-pairs: %: %.cpp libathena.a
 	$(CXX) $^ -o $@ $(CXXFLAGS) -fopenmp
 
-$(WORD2VEC_ATHENA_MAINS): %: %.cpp athena/build/lib/libathena.a
+$(WORD2VEC_ATHENA_MAINS): %: %.cpp libathena.a
 	$(CXX) $^ -o $@ $(CXXFLAGS) -fopenmp
 
 word2vec-blas-alias-neg: word2vec-blas-alias-neg.cpp _math.o
@@ -119,7 +119,7 @@ text8.split:
 vocab: word2vec $(TRAIN_FILE)
 	./word2vec -train $(TRAIN_FILE) -save-vocab vocab
 
-vocab.athena: athena/build/bin/word2vec-vocab-to-naive-lm vocab
+vocab.athena: word2vec-vocab-to-naive-lm vocab
 	./$^ -s 1e-3 $@
 
 vocab.gensim: gensim-word2vec.py $(TRAIN_FILE)
@@ -141,10 +141,16 @@ $(SEPARATE_WORD2VEC_QUERY_OUTPUTS): query-%.txt: model-%.bin distance
 query.txt: $(SEPARATE_WORD2VEC_QUERY_OUTPUTS)
 	head $^ > $@
 
-runtime-athena-word2vec.tab: athena/build/bin/word2vec-train $(TRAIN_FILE) vocab.athena
+runtime-athena-word2vec.tab: word2vec-train $(TRAIN_FILE) vocab.athena
 	./time.bash $(NUM_TRIALS) $@ ./$< -e 100 -n 5 -c 5 -k 0.025 -l vocab.athena $(TRAIN_FILE) /dev/null
 
-runtime-athena-spacesaving-word2vec.tab: athena/build/bin/spacesaving-word2vec-train $(TRAIN_FILE)
+runtime-athena-word2vec-alias.tab: word2vec-alias-train $(TRAIN_FILE) vocab.athena
+	./time.bash $(NUM_TRIALS) $@ ./$< -e 100 -n 5 -c 5 -k 0.025 -l vocab.athena $(TRAIN_FILE) /dev/null
+
+runtime-athena-word2vec-blas-alias.tab: word2vec-blas-alias-train $(TRAIN_FILE) vocab.athena
+	./time.bash $(NUM_TRIALS) $@ ./$< -e 100 -n 5 -c 5 -k 0.025 -l vocab.athena $(TRAIN_FILE) /dev/null
+
+runtime-athena-spacesaving-word2vec.tab: spacesaving-word2vec-train $(TRAIN_FILE)
 	./time.bash $(NUM_TRIALS) $@ ./$< -v 1000000 -e 100 -n 5 -c 5 -t 1e6 -k 0.025 $(TRAIN_FILE) /dev/null
 
 runtime-gensim-word2vec.tab: gensim-word2vec.py $(TRAIN_FILE) vocab.gensim
@@ -162,17 +168,23 @@ host.txt:
 athena/Makefile:
 	git clone https://github.com/cjmay/athena
 
-athena/build/bin/spacesaving-word2vec-train: athena/Makefile $(LIBATHENA_SOURCES) $(LIBATHENA_HEADERS) athena/src/spacesaving-word2vec-train.cpp
-	cd athena && make build/bin/spacesaving-word2vec-train
+spacesaving-word2vec-train: athena/Makefile $(LIBATHENA_SOURCES) $(LIBATHENA_HEADERS) athena/src/spacesaving-word2vec-train.cpp
+	cd athena && make clean build/bin/$@ && cp build/bin/$@ ../$@
 
-athena/build/bin/word2vec-train: athena/Makefile $(LIBATHENA_SOURCES) $(LIBATHENA_HEADERS) athena/src/word2vec-train.cpp
-	cd athena && make build/bin/word2vec-train
+word2vec-train: athena/Makefile $(LIBATHENA_SOURCES) $(LIBATHENA_HEADERS) athena/src/word2vec-train.cpp
+	cd athena && make clean build/bin/$@ && cp build/bin/$@ ../$@
 
-athena/build/bin/word2vec-vocab-to-naive-lm: athena/Makefile $(LIBATHENA_SOURCES) $(LIBATHENA_HEADERS) athena/src/word2vec-vocab-to-naive-lm.cpp
-	cd athena && make build/bin/word2vec-vocab-to-naive-lm
+word2vec-alias-train: athena/Makefile $(LIBATHENA_SOURCES) $(LIBATHENA_HEADERS) athena/src/word2vec-alias-train.cpp
+	cd athena && make clean build/bin/$@ && cp build/bin/$@ ../$@
 
-athena/build/lib/libathena.a: $(LIBATHENA_SOURCES) $(LIBATHENA_HEADERS)
-	cd athena && make build/lib/libathena.a
+word2vec-blas-alias-train: athena/Makefile $(LIBATHENA_SOURCES) $(LIBATHENA_HEADERS) athena/src/word2vec-alias-train.cpp
+	cd athena && make clean build/bin/word2vec-alias-train HAVE_CBLAS=1 && cp build/bin/word2vec-alias-train ../$@
+
+word2vec-vocab-to-naive-lm: athena/Makefile $(LIBATHENA_SOURCES) $(LIBATHENA_HEADERS) athena/src/word2vec-vocab-to-naive-lm.cpp
+	cd athena && make clean build/bin/$@ && cp build/bin/$@ ../$@
+
+libathena.a: $(LIBATHENA_SOURCES) $(LIBATHENA_HEADERS)
+	cd athena && make clean build/lib/$@ && cp build/lib/$@ ../$@
 
 clean:
 	rm -f $(WORD2VEC_MAINS)
