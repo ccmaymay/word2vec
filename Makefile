@@ -187,4 +187,18 @@ libathena.a: $(LIBATHENA_SOURCES) $(LIBATHENA_HEADERS)
 clean:
 	rm -f $(WORD2VEC_MAINS)
 	rm -f $(CUSTOM_WORD2VEC_MAINS)
-	rm -f $(SEPARATE_RUNTIME_TABS) runtime.tab cpuinfo.txt vocab
+	rm -f $(SEPARATE_RUNTIME_TABS) runtime.tab
+	rm -f host.txt
+	rm -f vocab vocab.athena vocab.gensim
+	rm -f $(SEPARATE_RUNTIME_MODELS)
+	rm -f $(SEPARATE_WORD2VEC_QUERY_OUTPUTS) query.txt
+	rm -f spacesaving-word2vec-train
+	rm -f word2vec-train
+	rm -f word2vec-alias-train
+	rm -f word2vec-blas-alias-train
+	rm -f word2vec-vocab-to-naive-lm
+	rm -f libathena.a
+	rm -f _math.o
+	rm -f word2vec-athena-3-num-pairs word2vec-athena-4-num-pairs
+	rm -f word2vec-local-vars-1 word2vec-local-vars-2
+	rm -f word2vec-num-pairs word2vec-entropy word2phrase word2vec-effective-tokens distance word-analogy compute-accuracy
