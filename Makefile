@@ -190,7 +190,7 @@ clean:
 	rm -f $(SEPARATE_RUNTIME_TABS) runtime.tab
 	rm -f host.txt
 	rm -f vocab vocab.athena vocab.gensim
-	rm -f $(SEPARATE_RUNTIME_MODELS)
+	rm -f $(SEPARATE_WORD2VEC_MODELS)
 	rm -f $(SEPARATE_WORD2VEC_QUERY_OUTPUTS) query.txt
 	rm -f spacesaving-word2vec-train
 	rm -f word2vec-train
