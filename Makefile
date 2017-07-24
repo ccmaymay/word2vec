@@ -181,7 +181,7 @@ word2vec-blas-alias-train: athena/Makefile $(LIBATHENA_SOURCES) $(LIBATHENA_HEAD
 word2vec-vocab-to-naive-lm: athena/Makefile $(LIBATHENA_SOURCES) $(LIBATHENA_HEADERS) athena/src/word2vec-vocab-to-naive-lm.cpp
 	cd athena && make clean build/bin/$@ && cp build/bin/$@ ../$@
 
-libathena.a: $(LIBATHENA_SOURCES) $(LIBATHENA_HEADERS)
+libathena.a: athena/Makefile $(LIBATHENA_SOURCES) $(LIBATHENA_HEADERS)
 	cd athena && make clean build/lib/$@ && cp build/lib/$@ ../$@
 
 clean:
