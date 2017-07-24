@@ -38,7 +38,7 @@ WORD2VEC_ATHENA_MAINS := \
 	word2vec-athena-4 word2vec-athena-5 word2vec-athena-6 word2vec-athena-7 \
 	word2vec-athena-8 word2vec-athena-9 word2vec-athena-10 word2vec-athena-11 \
 	word2vec-athena-12 word2vec-athena-13 word2vec-athena-14 \
-	word2vec-athena-15
+	word2vec-athena-15 word2vec-athena-16 word2vec-athena-17 word2vec-athena-18
 
 WORD2VEC_ATHENA_NEG_MAINS := \
 	word2vec-athena-neg word2vec-reservoir-neg word2vec-alias-neg \
@@ -181,7 +181,7 @@ word2vec-blas-alias-train: athena/Makefile $(LIBATHENA_SOURCES) $(LIBATHENA_HEAD
 word2vec-vocab-to-naive-lm: athena/Makefile $(LIBATHENA_SOURCES) $(LIBATHENA_HEADERS) athena/src/word2vec-vocab-to-naive-lm.cpp
 	cd athena && make clean build/bin/$@ && cp build/bin/$@ ../$@
 
-libathena.a: $(LIBATHENA_SOURCES) $(LIBATHENA_HEADERS)
+libathena.a: athena/Makefile $(LIBATHENA_SOURCES) $(LIBATHENA_HEADERS)
 	cd athena && make clean build/lib/$@ && cp build/lib/$@ ../$@
 
 clean:

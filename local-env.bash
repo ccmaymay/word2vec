@@ -45,12 +45,35 @@ else
     exit 1
 fi
 
-echo
-echo '----------------------------------------------------------------------------------'
-echo 'Use the following bash commands to add the installed software to your environment.'
-echo
+if [ $# -eq 0 ]
+then
+    echo
+    echo '--------------------------------------------------------------------------------'
+    echo 'Use the following bash commands to add the installed software to your'
+    echo 'environment.'
+    echo '--------------------------------------------------------------------------------'
+    echo
+else
+    echo
+    echo '--------------------------------------------------------------------------------'
+    echo 'Using the following bash commands to add the installed software to the'
+    echo "environment, then doing: $@"
+    echo '--------------------------------------------------------------------------------'
+    echo
+fi
+
 echo 'export C_INCLUDE_PATH="$PWD/include:$C_INCLUDE_PATH"'
 echo 'export CPLUS_INCLUDE_PATH="$PWD/include:$CPLUS_INCLUDE_PATH"'
 echo 'export LIBRARY_PATH="$PWD/lib:$LIBRARY_PATH"'
 echo 'export LD_LIBRARY_PATH="$PWD/lib:$LD_LIBRARY_PATH"'
 echo "$python_commands"
+
+if [ $# -gt 0 ]
+then
+    export C_INCLUDE_PATH="$PWD/include:$C_INCLUDE_PATH"
+    export CPLUS_INCLUDE_PATH="$PWD/include:$CPLUS_INCLUDE_PATH"
+    export LIBRARY_PATH="$PWD/lib:$LIBRARY_PATH"
+    export LD_LIBRARY_PATH="$PWD/lib:$LD_LIBRARY_PATH"
+    $python_commands
+    "$@"
+fi

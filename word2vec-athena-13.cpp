@@ -20,7 +20,7 @@
 
 #include <athena/src/_math.h>
 #include <athena/src/_core.h>
-#include <athena/src/_sgns.h>
+#include <athena/src/_cblas.h>
 
 #define MAX_STRING 100
 #define MAX_SENTENCE_LENGTH 1000
@@ -31,7 +31,6 @@ using namespace std;
 const int vocab_hash_size = 30000000;  // Maximum 30 * 0.7 = 21M words in the vocabulary
 
 typedef float real;                    // Precision of float numbers
-typedef SGNSTokenLearner<NaiveLanguageModel, DiscreteSamplingStrategy<NaiveLanguageModel> > SGNSTokenLearnerType;
 
 char train_file[MAX_STRING], output_file[MAX_STRING];
 char save_vocab_file[MAX_STRING], read_vocab_file[MAX_STRING];
@@ -39,7 +38,12 @@ int binary = 0, debug_mode = 2, min_count = 5, num_threads = 12, min_reduce = 1;
 long long word_count_actual = 0, iter = 5, file_size = 0, classes = 0;
 clock_t start;
 
+int negative = 5;
 const int table_size = 1e8;
+
+void zero_vector(long long n, real* v) {
+  memset(v, 0, n * sizeof(real));
+}
 
 // Reads a single word from a file, assuming space + tab + EOL to be word boundaries
 void ReadWord(char *word, FILE *fin, char *eof, char *eos) {
@@ -177,7 +181,7 @@ void ReadVocab(NaiveLanguageModel& language_model) {
 void update_progress(const NaiveLanguageModel& language_model, const SGD& sgd) {
   if ((debug_mode > 1)) {
     clock_t now = clock();
-    printf("%cAlpha: %f  Progress: %.2f%%  Words/thread/sec: %.2fk  ", 13, sgd.get_rho(0),
+    printf("%cAlpha[0]: %f  Progress: %.2f%%  Words/thread/sec: %.2fk  ", 13, sgd.get_rho(0),
      word_count_actual / (real)(iter * language_model.total() + 1) * 100,
      word_count_actual / ((real)(now - start + 1) / (real)CLOCKS_PER_SEC * 1000));
     fflush(stdout);
@@ -206,9 +210,11 @@ long long read_new_sentence(FILE* fi, const NaiveLanguageModel& language_model,
   return sentence_length;
 }
 
-void TrainModelThread(SGNSTokenLearnerType& token_learner, NaiveLanguageModel& language_model, DynamicContextStrategy& ctx_strategy, SGD& sgd, int neg_samples) {
-  DiscreteSamplingStrategy<NaiveLanguageModel>& neg_sampling_strategy(token_learner.neg_sampling_strategy);
-  WordContextFactorization& factorization(token_learner.factorization);
+void TrainModelThread(WordContextFactorization& factorization,
+                      DiscreteSamplingStrategy<NaiveLanguageModel>& neg_sampling_strategy,
+                      const NaiveLanguageModel& language_model,
+                      SGD& sgd,
+                      const DynamicContextStrategy& ctx_strategy) {
   long long
     sentence_length = 0,
     input_word_position = 0,
@@ -244,66 +250,45 @@ void TrainModelThread(SGNSTokenLearnerType& token_learner, NaiveLanguageModel& l
     auto ctx = ctx_strategy.size(
       input_word_position,
       (sentence_length - 1) - input_word_position);
+    const real alpha = sgd.get_rho(input_word);
 
     for (long long output_word_position = input_word_position - ctx.first;
         output_word_position <= input_word_position + ctx.second;
         ++output_word_position) if (output_word_position != input_word_position) {
       long long output_word = sen[output_word_position];
       if (output_word == -1) continue;
-      // initialize input (input) word gradient
-      AlignedVector input_word_gradient(
-        factorization.get_embedding_dim());
-      memset(input_word_gradient.data(), 0,
-        sizeof(float) * factorization.get_embedding_dim());
-
-      // compute contribution of context (output) word to input (input)
-      // word gradient, take context word gradient step
-      const float coeff = token_learner.compute_gradient_coeff(input_word,
-                                                  output_word, false);
-      cblas_saxpy(
-        factorization.get_embedding_dim(),
-        coeff,
-        factorization.get_context_embedding(output_word), 1,
-        input_word_gradient.data(), 1
-      );
-      sgd.scaled_gradient_update(
-        output_word,
-        factorization.get_embedding_dim(),
-        factorization.get_word_embedding(input_word),
-        factorization.get_context_embedding(output_word),
-        coeff
-      );
-
-      for (size_t j = 0; j < neg_samples; ++j) {
-        // compute contribution of neg-sample word to input (input) word
-        // gradient, take neg-sample word gradient step
-        const long neg_sample_word =
-          neg_sampling_strategy.sample_idx(language_model);
-
-        const float coeff = token_learner.compute_gradient_coeff(input_word,
-                                                   neg_sample_word, true);
-        cblas_saxpy(
-          factorization.get_embedding_dim(),
-          coeff,
-          factorization.get_context_embedding(neg_sample_word), 1,
-          input_word_gradient.data(), 1
-        );
-        sgd.scaled_gradient_update(
-          neg_sample_word,
-          factorization.get_embedding_dim(),
-          factorization.get_word_embedding(input_word),
-          factorization.get_context_embedding(neg_sample_word),
-          coeff
-        );
+      real *input_word_gradient = (real *)calloc(factorization.get_embedding_dim(), sizeof(real));
+      zero_vector(factorization.get_embedding_dim(), input_word_gradient);
+      // NEGATIVE SAMPLING
+      if (negative > 0) for (long long d = 0; d < negative + 1; d++) {
+        long long target_word, is_output;
+        if (d == 0) {
+          target_word = output_word;
+          is_output = 1;
+        } else {
+          target_word = neg_sampling_strategy.sample_idx(language_model);
+          if (target_word == output_word) continue;
+          is_output = 0;
+        }
+        real f = cblas_sdot(factorization.get_embedding_dim(),
+                      factorization.get_word_embedding(input_word), 1,
+                      factorization.get_context_embedding(target_word), 1);
+        real gradient_scale = (is_output - sigmoid(f)) * alpha;
+        cblas_saxpy(factorization.get_embedding_dim(),
+              gradient_scale,
+              factorization.get_context_embedding(target_word), 1,
+              input_word_gradient, 1);
+        cblas_saxpy(factorization.get_embedding_dim(),
+              gradient_scale,
+              factorization.get_word_embedding(input_word), 1,
+              factorization.get_context_embedding(target_word), 1);
       }
-
-      // take input (input) word gradient step
-      sgd.gradient_update(
-        input_word,
-        factorization.get_embedding_dim(),
-        input_word_gradient.data(),
-        factorization.get_word_embedding(input_word)
-      );
+      // Learn weights input -> hidden
+      cblas_saxpy(factorization.get_embedding_dim(),
+            1,
+            input_word_gradient, 1,
+            factorization.get_word_embedding(input_word), 1);
+      free(input_word_gradient);
     }
     input_word_position++;
     sgd.step(input_word);
@@ -311,29 +296,25 @@ void TrainModelThread(SGNSTokenLearnerType& token_learner, NaiveLanguageModel& l
   fclose(fi);
 }
 
-void TrainModel(NaiveLanguageModel& _language_model, real alpha, long long embedding_size, int window, int neg_samples) {
+void TrainModel(NaiveLanguageModel& language_model, real alpha, long long embedding_size, int window) {
   printf("Starting training using file %s\n", train_file);
-  if (read_vocab_file[0] != 0) ReadVocab(_language_model); else LearnVocabFromTrainFile(_language_model);
-  if (save_vocab_file[0] != 0) SaveVocab(_language_model);
+  if (read_vocab_file[0] != 0) ReadVocab(language_model); else LearnVocabFromTrainFile(language_model);
+  if (save_vocab_file[0] != 0) SaveVocab(language_model);
   if (output_file[0] == 0) return;
 
-  size_t lm_size(_language_model.size());
-  size_t lm_total(_language_model.total());
-  auto lm_counts(_language_model.counts());
+  size_t lm_size(language_model.size());
+  size_t lm_total(language_model.total());
   ExponentCountNormalizer normalizer(0.75);
-  SGNSTokenLearnerType token_learner(
-    WordContextFactorization(lm_size, embedding_size),
-    DiscreteSamplingStrategy<NaiveLanguageModel>(Discretization(normalizer.normalize(lm_counts), table_size)),
-    move(_language_model),
-    SGD(lm_size, lm_total * iter, alpha, 0.0001 * alpha)
-  );
+  SGD sgd(lm_size, lm_total * iter, alpha, 0.0001 * alpha);
+  WordContextFactorization factorization(lm_size, embedding_size);
+  DiscreteSamplingStrategy<NaiveLanguageModel> neg_sampling_strategy(Discretization(normalizer.normalize(language_model.counts()), table_size));
   DynamicContextStrategy ctx_strategy(window);
-  WordContextFactorization& factorization(token_learner.factorization);
-  NaiveLanguageModel& language_model(token_learner.language_model);
-  SGD& sgd(token_learner.sgd);
-
   start = clock();
-  TrainModelThread(token_learner, language_model, ctx_strategy, sgd, neg_samples);
+  TrainModelThread(factorization,
+                   neg_sampling_strategy,
+                   language_model,
+                   sgd,
+                   ctx_strategy);
   FILE *fo = fopen(output_file, "wb");
   if (classes == 0) {
     // Save the word vectors
@@ -447,7 +428,6 @@ int main(int argc, char **argv) {
   read_vocab_file[0] = 0;
   int i;
   int window = 5;
-  int neg_samples = 5;
   real alpha = 0.025;
   real sample = 1e-3;
   long long embedding_size = 100;
@@ -461,7 +441,7 @@ int main(int argc, char **argv) {
   if ((i = ArgPos((char *)"-output", argc, argv)) > 0) strcpy(output_file, argv[i + 1]);
   if ((i = ArgPos((char *)"-window", argc, argv)) > 0) window = atoi(argv[i + 1]);
   if ((i = ArgPos((char *)"-sample", argc, argv)) > 0) sample = atof(argv[i + 1]);
-  if ((i = ArgPos((char *)"-negative", argc, argv)) > 0) neg_samples = atoi(argv[i + 1]);
+  if ((i = ArgPos((char *)"-negative", argc, argv)) > 0) negative = atoi(argv[i + 1]);
   if ((i = ArgPos((char *)"-threads", argc, argv)) > 0) num_threads = atoi(argv[i + 1]);
   if ((i = ArgPos((char *)"-iter", argc, argv)) > 0) iter = atoi(argv[i + 1]);
   if ((i = ArgPos((char *)"-min-count", argc, argv)) > 0) min_count = atoi(argv[i + 1]);
@@ -471,6 +451,6 @@ int main(int argc, char **argv) {
     exit(1);
   }
   NaiveLanguageModel language_model(sample);
-  TrainModel(language_model, alpha, embedding_size, window, neg_samples);
+  TrainModel(language_model, alpha, embedding_size, window);
   return 0;
 }
