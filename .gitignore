@@ -75,3 +75,9 @@ word2vec-entropy
 model-*.bin
 query-*.txt
 query.txt
+spacesaving-word2vec-train
+word2vec-train
+word2vec-alias-train
+word2vec-blas-alias-train
+word2vec-vocab-to-naive-lm
+libathena.a
