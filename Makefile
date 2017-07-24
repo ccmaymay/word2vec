@@ -23,8 +23,6 @@ endif
 
 QUERY ?= bush
 
-PATCH_TMP ?= patch-tmp
-
 CBLAS_FLAGS ?= -lopenblas
 
 PYTHON ?= python
@@ -190,4 +188,3 @@ clean:
 	rm -f $(WORD2VEC_MAINS)
 	rm -f $(CUSTOM_WORD2VEC_MAINS)
 	rm -f $(SEPARATE_RUNTIME_TABS) runtime.tab cpuinfo.txt vocab
-	rm -rf $(PATCH_TMP)
