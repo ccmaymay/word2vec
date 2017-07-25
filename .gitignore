@@ -32,7 +32,8 @@ word2vec-athena-16
 word2vec-athena-17
 word2vec-athena-18
 word2vec-athena-neg
-word2vec-1-neg
+word2vec-true-1-neg
+word2vec-false-1-neg
 word2vec-static-window
 word2vec-alias-neg
 word2vec-naive-neg

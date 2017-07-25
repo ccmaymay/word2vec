@@ -55,8 +55,9 @@ WORD2VEC_MAINS := \
 	word2vec word2vec-static-window \
 	word2vec-unsmoothed-neg word2vec-uniform-neg word2vec-local-vars-0 \
 	word2vec-no-subsample word2vec-double word2vec-no-memalign \
-	word2vec-no-pthread word2vec-1-neg word2vec-continuous-lr word2vec-exp \
-	word2vec-int word2vec-longlong word2vec-comments
+	word2vec-no-pthread word2vec-true-1-neg word2vec-false-1-neg \
+	word2vec-continuous-lr word2vec-exp word2vec-int word2vec-longlong \
+	word2vec-comments
 
 SEPARATE_WORD2VEC_RUNTIME_TABS := \
 	$(patsubst %,runtime-%.tab,$(WORD2VEC_MAINS) $(CUSTOM_WORD2VEC_MAINS))
