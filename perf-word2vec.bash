@@ -2,7 +2,7 @@
 
 set -e
 
-for e in cycles,instructions L1-dcache-loads,L1-dcache-load-misses LLC-loads,LLC-load-misses
+for e in cycles,instructions L1-dcache-loads,L1-dcache-load-misses LLC-loads,LLC-load-misses L1-dcache-prefetches
 do
     for p in word2vec-true-1-neg word2vec-false-1-neg word2vec-alias-neg word2vec-unsmoothed-neg word2vec word2vec-uniform-neg
     do
