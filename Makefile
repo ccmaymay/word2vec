@@ -143,6 +143,9 @@ $(SEPARATE_WORD2VEC_QUERY_OUTPUTS): query-%.txt: model-%.bin distance
 query.txt: $(SEPARATE_WORD2VEC_QUERY_OUTPUTS)
 	head $^ > $@
 
+perf-results.txt: perf-word2vec.bash text8 vocab word2vec-true-1-neg word2vec-false-1-neg word2vec-alias-neg word2vec-unsmoothed-neg word2vec word2vec-uniform-neg
+	./$< | tee $@
+
 runtime-athena-word2vec.tab: word2vec-train $(TRAIN_FILE) vocab.athena
 	./time.bash $(NUM_TRIALS) $@ ./$< -e 100 -n 5 -c 5 -k 0.025 -l vocab.athena $(TRAIN_FILE) /dev/null
 

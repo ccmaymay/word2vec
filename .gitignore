@@ -85,3 +85,4 @@ word2vec-alias-train
 word2vec-blas-alias-train
 word2vec-vocab-to-naive-lm
 libathena.a
+perf-results.txt
