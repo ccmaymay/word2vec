@@ -70,7 +70,10 @@ SEPARATE_WORD2VEC_QUERY_OUTPUTS := \
 
 SEPARATE_RUNTIME_TABS := \
 	$(SEPARATE_WORD2VEC_RUNTIME_TABS) \
-	runtime-athena-word2vec.tab runtime-athena-spacesaving-word2vec.tab \
+	runtime-athena-word2vec.tab \
+	runtime-athena-word2vec-alias.tab \
+	runtime-athena-word2vec-blas-alias.tab \
+	runtime-athena-spacesaving-word2vec.tab \
 	runtime-gensim-word2vec.tab
 
 .PHONY: all
