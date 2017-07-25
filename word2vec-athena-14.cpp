@@ -273,7 +273,7 @@ void TrainModelThread(WordContextFactorization& factorization,
         real f = cblas_sdot(factorization.get_embedding_dim(),
                       factorization.get_word_embedding(input_word), 1,
                       factorization.get_context_embedding(target_word), 1);
-        real gradient_scale = (is_output - sigmoid(f)) * alpha;
+        real gradient_scale = (is_output - fast_sigmoid(f)) * alpha;
         cblas_saxpy(factorization.get_embedding_dim(),
               gradient_scale,
               factorization.get_context_embedding(target_word), 1,
