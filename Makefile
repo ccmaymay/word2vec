@@ -163,6 +163,8 @@ runtime-gensim-word2vec.tab: gensim-word2vec.py $(TRAIN_FILE) vocab.gensim
 
 host.txt:
 	hostname > $@
+	echo >> $@; uname -a >> $@
+	echo >> $@; lsb_release -a >> $@ || true
 	echo >> $@; cat /proc/cpuinfo >> $@
 	echo >> $@; free -m >> $@
 	echo >> $@; $(CC) --version >> $@ 2>&1
