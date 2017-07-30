@@ -2,7 +2,7 @@
 
 set -e
 
-for e in dTLB-loads,dTLB-load-misses iTLB-loads,iTLB-load-misses L1-icache-loads,L1-icache-load-misses #cycles,instructions L1-dcache-loads,L1-dcache-load-misses LLC-loads,LLC-load-misses L1-dcache-prefetches
+for e in dTLB-loads,dTLB-load-misses iTLB-loads,iTLB-load-misses L1-icache-loads,L1-icache-load-misses cycles,instructions L1-dcache-loads,L1-dcache-load-misses LLC-loads,LLC-load-misses L1-dcache-prefetches
 do
     for p in word2vec-true-1-neg word2vec-false-1-neg word2vec-alias-neg word2vec-unsmoothed-neg word2vec word2vec-uniform-neg
     do
