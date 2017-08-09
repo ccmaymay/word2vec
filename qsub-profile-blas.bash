@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -e
-
 if [ $# -ne 1 ]
 then
     echo "usage: $0 <grid>" >&2

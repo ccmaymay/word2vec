@@ -9,6 +9,7 @@ def main():
     print('\t'.join((
         'host',
         'atlas_run_1', 'atlas_run_2', 'atlas_run_3',
+        'mod_openblas_run_1', 'mod_openblas_run_2', 'mod_openblas_run_3'
         'openblas_run_1', 'openblas_run_2', 'openblas_run_3'
     )))
     paths = sys.argv[1:]
