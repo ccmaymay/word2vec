@@ -1,5 +1,4 @@
-[Google word2vec C code](https://github.com/tmikolov/word2vec) with
-comments.  Run
+This repository contains the [word2vec C code](https://github.com/tmikolov/word2vec), but with comments.  Run
 
 ```bash
     git diff original
